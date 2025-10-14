@@ -64,8 +64,9 @@ The core functionality follows this flow:
 
 **Persistence Layer:**
 - All state stored in UserDefaults (no Core Data or files)
-- Keys: "routingRules", "customBrowsers", "hiddenBrowsers", "stripTrackingParameters"
+- Keys: "routingRules", "customBrowsers", "hiddenBrowsers", "browserOrder", "browserUUIDMap", "stripTrackingParameters"
 - RuleEngine, BrowserDetector use @Published to sync changes to UI
+- browserUUIDMap maintains stable UUIDs for auto-detected browsers across app restarts (maps bundleId -> UUID)
 
 **Reactive Updates:**
 - URLHandler.$showBrowserPicker observed in AppDelegate (line 69) with debouncing
