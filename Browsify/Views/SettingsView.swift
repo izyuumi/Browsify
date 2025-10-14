@@ -80,17 +80,9 @@ struct PreferencesView: View {
         let bundleURL = Bundle.main.bundleURL
 
         // Set as default for both HTTP and HTTPS
-        NSWorkspace.shared.setDefaultApplication(at: bundleURL, toOpenURLsWithScheme: "http") { error in
-            if let error = error {
-                print("Failed to set default browser for http: \(error.localizedDescription)")
-            }
-        }
+        NSWorkspace.shared.setDefaultApplication(at: bundleURL, toOpenURLsWithScheme: "http") { _ in }
 
-        NSWorkspace.shared.setDefaultApplication(at: bundleURL, toOpenURLsWithScheme: "https") { error in
-            if let error = error {
-                print("Failed to set default browser for https: \(error.localizedDescription)")
-            }
-        }
+        NSWorkspace.shared.setDefaultApplication(at: bundleURL, toOpenURLsWithScheme: "https") { _ in }
     }
 }
 
