@@ -100,12 +100,19 @@ struct RulesListView: View {
 
     @State private var showingAddRule = false
     @State private var editingRule: RoutingRule?
+    @State private var isReorderMode = false
 
     var body: some View {
         VStack {
             List {
-                ForEach(ruleEngine.rules.sorted(by: { $0.priority > $1.priority })) { rule in
-                    RuleRowView(rule: rule) {
+                Section {
+                    Text("Drag rules to reorder. The first match wins.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                ForEach(ruleEngine.rules) { rule in
+                    RuleRowView(rule: rule, isReorderMode: isReorderMode) {
                         editingRule = rule
                     } deleteAction: {
                         ruleEngine.deleteRule(rule)
@@ -114,6 +121,9 @@ struct RulesListView: View {
                         updatedRule.isEnabled.toggle()
                         ruleEngine.updateRule(updatedRule)
                     }
+                }
+                .if(isReorderMode) { view in
+                    view.onMove(perform: moveRules)
                 }
             }
 
@@ -124,6 +134,14 @@ struct RulesListView: View {
                     Label("Add Rule", systemImage: "plus")
                 }
                 .buttonStyle(.borderedProminent)
+
+                Button(action: toggleReorderMode) {
+                    Label(
+                        isReorderMode ? "Done" : "Reorder",
+                        systemImage: isReorderMode ? "checkmark.circle" : "arrow.up.arrow.down"
+                    )
+                }
+                .buttonStyle(.bordered)
 
                 Spacer()
             }
@@ -148,17 +166,20 @@ struct RulesListView: View {
 
 struct RuleRowView: View {
     let rule: RoutingRule
+    let isReorderMode: Bool
     let editAction: () -> Void
     let deleteAction: () -> Void
     let toggleAction: () -> Void
 
     var body: some View {
         HStack {
-            Toggle("", isOn: .constant(rule.isEnabled))
-                .labelsHidden()
-                .onChange(of: rule.isEnabled) { _, _ in
-                    toggleAction()
-                }
+            if !isReorderMode {
+                Toggle("", isOn: .constant(rule.isEnabled))
+                    .labelsHidden()
+                    .onChange(of: rule.isEnabled) { _, _ in
+                        toggleAction()
+                    }
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(rule.pattern)
@@ -167,27 +188,37 @@ struct RuleRowView: View {
                     Text(rule.matchType.rawValue)
                         .font(.caption)
                         .foregroundColor(.secondary)
-
-                    Text("Priority: \(rule.priority)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
             }
 
             Spacer()
 
-            Button(action: editAction) {
-                Image(systemName: "pencil")
-            }
-            .buttonStyle(.plain)
+            if !isReorderMode {
+                Button(action: editAction) {
+                    Image(systemName: "pencil")
+                }
+                .buttonStyle(.plain)
 
-            Button(action: deleteAction) {
-                Image(systemName: "trash")
-                    .foregroundColor(.red)
+                Button(action: deleteAction) {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .opacity(rule.isEnabled ? 1.0 : 0.5)
+    }
+}
+
+private extension RulesListView {
+    func moveRules(from source: IndexSet, to destination: Int) {
+        ruleEngine.moveRules(fromOffsets: source, toOffset: destination)
+    }
+
+    func toggleReorderMode() {
+        withAnimation {
+            isReorderMode.toggle()
+        }
     }
 }
 
@@ -529,5 +560,16 @@ struct BrowserEditorView: View {
             browserDetector.addCustomBrowser(newBrowser)
         }
         dismiss()
+    }
+}
+
+// Extension to conditionally apply view modifiers
+extension View {
+    @ViewBuilder func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
+        }
     }
 }

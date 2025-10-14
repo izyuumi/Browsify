@@ -50,11 +50,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // menu.addItem(testItem)
         // menu.addItem(NSMenuItem.separator())
 
-        let aboutItem = NSMenuItem(title: "About Browsify", action: #selector(showAbout), keyEquivalent: "")
-        aboutItem.target = self
-        menu.addItem(aboutItem)
-        menu.addItem(NSMenuItem.separator())
-
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
@@ -305,10 +300,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func testPicker() {
         let testURL = URL(string: "https://www.example.com")!
         URLHandler.shared.handleURL(testURL, sourceApp: nil)
-    }
-
-    @objc func showAbout() {
-        NSApp.orderFrontStandardAboutPanel(nil)
     }
 
     @objc func quit() {

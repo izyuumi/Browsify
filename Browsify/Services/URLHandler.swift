@@ -29,12 +29,15 @@ class URLHandler: NSObject, ObservableObject {
         let cleanedURL = urlCleaner.cleanURL(url, stripTracking: urlCleaner.shouldStripTracking())
 
         // Check for desktop app handlers first
+        NSLog("[URLHandler] Checking desktop app handlers for URL: \(cleanedURL.absoluteString)")
         for desktopApp in DesktopApp.knownApps {
             if desktopApp.canHandle(url: cleanedURL) {
+                NSLog("[URLHandler] Desktop app '\(desktopApp.name)' can handle URL")
                 desktopApp.openURL(cleanedURL)
                 return
             }
         }
+        NSLog("[URLHandler] No desktop app can handle URL")
 
         // Check routing rules
         if let matchingRule = ruleEngine.findMatchingRule(for: cleanedURL, sourceApp: sourceApp) {
@@ -59,8 +62,28 @@ class URLHandler: NSObject, ObservableObject {
             }
 
         case .desktopApp(let bundleId):
+            NSLog("[URLHandler] Applying rule with desktop app target: \(bundleId)")
             if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
-                NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration()) { _, _ in }
+                NSLog("[URLHandler] Found app at: \(appURL.path)")
+                NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration()) { app, error in
+                    if let error = error {
+                        NSLog("[URLHandler] ERROR: Failed to open with desktop app: \(error.localizedDescription)")
+                        // Fallback to browser picker on error
+                        DispatchQueue.main.async {
+                            self.pendingURL = url
+                            self.showBrowserPicker = true
+                        }
+                    } else {
+                        NSLog("[URLHandler] Successfully opened URL with desktop app")
+                    }
+                }
+            } else {
+                NSLog("[URLHandler] ERROR: Desktop app with bundleId '\(bundleId)' not found - showing browser picker as fallback")
+                // Show browser picker when desktop app is not installed
+                DispatchQueue.main.async {
+                    self.pendingURL = url
+                    self.showBrowserPicker = true
+                }
             }
         }
     }
