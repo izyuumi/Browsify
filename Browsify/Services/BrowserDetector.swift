@@ -14,6 +14,7 @@ class BrowserDetector: ObservableObject {
     private let customBrowsersKey = "customBrowsers"
     private let hiddenBrowsersKey = "hiddenBrowsers"
     private let browserOrderKey = "browserOrder"
+    private let browserUUIDMapKey = "browserUUIDMap" // Maps bundleId -> UUID
 
     // Cache detected browsers to avoid redundant filesystem scans
     private var cachedDetectedBrowsers: [Browser] = []
@@ -118,6 +119,20 @@ class BrowserDetector: ObservableObject {
         }
     }
 
+    private func loadBrowserUUIDMap() -> [String: UUID] {
+        guard let data = UserDefaults.standard.data(forKey: browserUUIDMapKey),
+              let map = try? JSONDecoder().decode([String: UUID].self, from: data) else {
+            return [:]
+        }
+        return map
+    }
+
+    private func saveBrowserUUIDMap(_ map: [String: UUID]) {
+        if let data = try? JSONEncoder().encode(map) {
+            UserDefaults.standard.set(data, forKey: browserUUIDMapKey)
+        }
+    }
+
     private let knownBrowsers: [(name: String, bundleId: String)] = [
         ("Safari", "com.apple.Safari"),
         ("Google Chrome", "com.google.Chrome"),
@@ -135,6 +150,7 @@ class BrowserDetector: ObservableObject {
 
     func detectBrowsers() {
         var detectedBrowsers: [Browser] = []
+        var uuidMap = loadBrowserUUIDMap()
 
         // Auto-detect known browsers
         for (name, bundleId) in knownBrowsers {
@@ -144,7 +160,12 @@ class BrowserDetector: ObservableObject {
                 // Detect profiles for this browser
                 let profiles = detectProfiles(for: bundleId, name: name)
 
+                // Reuse existing UUID if available, otherwise generate new one
+                let browserId = uuidMap[bundleId] ?? UUID()
+                uuidMap[bundleId] = browserId
+
                 let browser = Browser(
+                    id: browserId,
                     name: name,
                     bundleIdentifier: bundleId,
                     path: path,
@@ -156,9 +177,12 @@ class BrowserDetector: ObservableObject {
             }
         }
 
-        // Add custom browsers
+        // Add custom browsers (they have their own stable UUIDs)
         let customBrowsers = loadCustomBrowsers()
         detectedBrowsers.append(contentsOf: customBrowsers)
+
+        // Save the updated UUID map
+        saveBrowserUUIDMap(uuidMap)
 
         let sortedBrowsers = detectedBrowsers.sorted { $0.name < $1.name }
 
