@@ -14,13 +14,14 @@ class RuleEngine: ObservableObject {
     }
 
     func addRule(_ rule: RoutingRule) {
-        rules.append(rule)
+        insertSorted(rule)
         saveRules()
     }
 
     func updateRule(_ rule: RoutingRule) {
         if let index = rules.firstIndex(where: { $0.id == rule.id }) {
-            rules[index] = rule
+            rules.remove(at: index)
+            insertSorted(rule)
             saveRules()
         }
     }
@@ -31,10 +32,8 @@ class RuleEngine: ObservableObject {
     }
 
     func findMatchingRule(for url: URL, sourceApp: String?) -> RoutingRule? {
-        // Sort by priority (higher priority first)
-        let sortedRules = rules.sorted { $0.priority > $1.priority }
-
-        for rule in sortedRules {
+        // Rules are already sorted by priority (higher priority first)
+        for rule in rules {
             if rule.matches(url: url, sourceApp: sourceApp) {
                 return rule
             }
@@ -52,7 +51,7 @@ class RuleEngine: ObservableObject {
     private func loadRules() {
         if let data = UserDefaults.standard.data(forKey: "routingRules"),
            let decoded = try? JSONDecoder().decode([RoutingRule].self, from: data) {
-            rules = decoded
+            rules = decoded.sorted { $0.priority > $1.priority }
         } else {
             // Create some default rules
             createDefaultRules()
@@ -75,7 +74,13 @@ class RuleEngine: ObservableObject {
             priority: 100
         )
 
-        rules = [zoomRule, teamsRule]
+        rules = [zoomRule, teamsRule].sorted { $0.priority > $1.priority }
         saveRules()
+    }
+
+    private func insertSorted(_ rule: RoutingRule) {
+        // Find the correct position to insert (higher priority first)
+        let insertIndex = rules.firstIndex { $0.priority < rule.priority } ?? rules.count
+        rules.insert(rule, at: insertIndex)
     }
 }
