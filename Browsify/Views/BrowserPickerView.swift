@@ -8,6 +8,7 @@ import SwiftUI
 struct BrowserPickerView: View {
     @ObservedObject var urlHandler: URLHandler
     @ObservedObject var browserDetector: BrowserDetector
+    @State private var eventMonitor: Any?
 
     private var dynamicWidth: CGFloat {
         let browserCount = CGFloat(browserDetector.browsers.count)
@@ -49,7 +50,7 @@ struct BrowserPickerView: View {
         .allowsHitTesting(true)
         .onAppear {
             // Setup keyboard shortcuts for numbers 1-9 and ESC
-            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 // Check for ESC key
                 if event.keyCode == 53 { // ESC key code
                     self.urlHandler.cancelPicker()
@@ -68,6 +69,13 @@ struct BrowserPickerView: View {
                 let browser = self.browserDetector.browsers[number - 1]
                 self.openWithBrowser(browser)
                 return nil // Consume the event
+            }
+        }
+        .onDisappear {
+            // Remove event monitor to prevent memory leak
+            if let monitor = eventMonitor {
+                NSEvent.removeMonitor(monitor)
+                eventMonitor = nil
             }
         }
     }

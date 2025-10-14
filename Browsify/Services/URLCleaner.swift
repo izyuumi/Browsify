@@ -8,7 +8,7 @@ import Foundation
 class URLCleaner {
     static let shared = URLCleaner()
 
-    private let trackingParameters = [
+    private let trackingParameters: Set<String> = [
         // Google Analytics
         "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
         "utm_name", "utm_cid", "utm_reader", "utm_viz_id", "utm_pubreferrer",

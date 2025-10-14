@@ -14,6 +14,9 @@ class BrowserDetector: ObservableObject {
     private let customBrowsersKey = "customBrowsers"
     private let hiddenBrowsersKey = "hiddenBrowsers"
 
+    // Cache detected browsers to avoid redundant filesystem scans
+    private var cachedDetectedBrowsers: [Browser] = []
+
     init() {
         // Auto-detect browsers on initialization
         detectBrowsers()
@@ -51,14 +54,14 @@ class BrowserDetector: ObservableObject {
         var hiddenIds = loadHiddenBrowserIds()
         hiddenIds.insert(browser.id)
         saveHiddenBrowserIds(hiddenIds)
-        detectBrowsers()
+        updateBrowserVisibility() // Only update visibility, no need to re-scan
     }
 
     func unhideBrowser(_ browser: Browser) {
         var hiddenIds = loadHiddenBrowserIds()
         hiddenIds.remove(browser.id)
         saveHiddenBrowserIds(hiddenIds)
-        detectBrowsers()
+        updateBrowserVisibility() // Only update visibility, no need to re-scan
     }
 
     func isHidden(_ browser: Browser) -> Bool {
@@ -137,13 +140,25 @@ class BrowserDetector: ObservableObject {
         detectedBrowsers.append(contentsOf: customBrowsers)
 
         let sortedBrowsers = detectedBrowsers.sorted { $0.name < $1.name }
+
+        // Cache the detected browsers to avoid re-scanning on visibility changes
+        cachedDetectedBrowsers = sortedBrowsers
+
+        // Update the published arrays with visibility filtering
+        updateBrowserVisibility()
+    }
+
+    /// Updates browser visibility filtering without performing filesystem scans.
+    /// This method uses cached detection results and only filters based on hidden status.
+    /// Use this instead of detectBrowsers() when only hide/unhide operations occur.
+    private func updateBrowserVisibility() {
         let hiddenIds = loadHiddenBrowserIds()
 
         DispatchQueue.main.async {
             // allBrowsers includes hidden browsers (for settings view)
-            self.allBrowsers = sortedBrowsers
+            self.allBrowsers = self.cachedDetectedBrowsers
             // browsers excludes hidden browsers (for picker view)
-            self.browsers = sortedBrowsers.filter { !hiddenIds.contains($0.id) }
+            self.browsers = self.cachedDetectedBrowsers.filter { !hiddenIds.contains($0.id) }
         }
     }
 
