@@ -427,15 +427,15 @@ struct BrowserEditorView: View {
 
             Form {
                 TextField("Browser Name", text: $name)
-                TextField("Bundle Identifier", text: $bundleIdentifier)
-                    .help("e.g., com.company.browser")
 
                 HStack {
                     TextField("Application Path", text: $path)
+                        .disabled(true)
                     Button("Browse...") {
                         selectBrowserApp()
                     }
                 }
+                .help("Select the browser application file")
             }
             .padding()
 
@@ -454,7 +454,7 @@ struct BrowserEditorView: View {
                 }
                 .keyboardShortcut(.return)
                 .buttonStyle(.borderedProminent)
-                .disabled(name.isEmpty || bundleIdentifier.isEmpty || path.isEmpty)
+                .disabled(name.isEmpty || path.isEmpty)
             }
             .padding()
         }
@@ -479,6 +479,17 @@ struct BrowserEditorView: View {
                 }
                 if let displayName = bundle.infoDictionary?["CFBundleName"] as? String, name.isEmpty {
                     name = displayName
+                }
+            }
+
+            // Fallback: generate bundle ID from app name if not found
+            if bundleIdentifier.isEmpty {
+                let appName = url.deletingPathExtension().lastPathComponent
+                bundleIdentifier = "custom.browsify.\(appName.lowercased().replacingOccurrences(of: " ", with: ""))"
+
+                // Auto-fill name if empty
+                if name.isEmpty {
+                    name = appName
                 }
             }
         }

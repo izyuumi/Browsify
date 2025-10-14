@@ -41,10 +41,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
 
-        let testItem = NSMenuItem(title: "Test Picker...", action: #selector(testPicker), keyEquivalent: "t")
-        testItem.target = self
-        menu.addItem(testItem)
-        menu.addItem(NSMenuItem.separator())
+        // Test picker hidden from production menu
+        // let testItem = NSMenuItem(title: "Test Picker...", action: #selector(testPicker), keyEquivalent: "t")
+        // testItem.target = self
+        // menu.addItem(testItem)
+        // menu.addItem(NSMenuItem.separator())
 
         let aboutItem = NSMenuItem(title: "About Browsify", action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
