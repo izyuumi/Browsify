@@ -195,6 +195,12 @@ struct RuleRowView: View {
 }
 
 struct AboutView: View {
+    private var appVersion: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
+        return "Version \(version) (\(build))"
+    }
+
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "link.circle.fill")
@@ -210,7 +216,7 @@ struct AboutView: View {
                 .font(.headline)
                 .foregroundColor(.secondary)
 
-            Text("Version 1.0.0")
+            Text(appVersion)
                 .font(.caption)
                 .foregroundColor(.secondary)
 
