@@ -8,20 +8,28 @@ import Combine
 import AppKit
 import SwiftUI
 
+enum DefaultBrowserPreference: Equatable {
+    case prompt
+    case browser(UUID)
+}
+
 class URLHandler: NSObject, ObservableObject {
     static let shared = URLHandler()
 
     @Published var pendingURL: URL?
     @Published var sourceApplication: String?
     @Published var showBrowserPicker = false
+    @Published private(set) var defaultBrowserPreference: DefaultBrowserPreference = .prompt
 
     private let browserDetector = BrowserDetector()
     private let ruleEngine = RuleEngine()
     private let urlCleaner = URLCleaner.shared
+    private let defaultBrowserPreferenceKey = "defaultBrowserPreference"
 
     private override init() {
         super.init()
         // URL events are handled by AppDelegate
+        defaultBrowserPreference = loadDefaultBrowserPreference()
     }
 
     func handleURL(_ url: URL, sourceApp: String?) {
@@ -42,6 +50,14 @@ class URLHandler: NSObject, ObservableObject {
         // Check routing rules
         if let matchingRule = ruleEngine.findMatchingRule(for: cleanedURL, sourceApp: sourceApp) {
             applyRule(matchingRule, to: cleanedURL)
+            return
+        }
+
+        // Apply saved default browser preference if available
+        if case let .browser(browserId) = defaultBrowserPreference,
+           let browser = browserDetector.browsers.first(where: { $0.id == browserId }) {
+            NSLog("[URLHandler] Using saved default browser '\(browser.name)' for URL: \(cleanedURL.absoluteString)")
+            browser.openURL(cleanedURL, profile: nil)
             return
         }
 
@@ -117,5 +133,53 @@ class URLHandler: NSObject, ObservableObject {
 
     func getRuleEngine() -> RuleEngine {
         return ruleEngine
+    }
+
+    func setDefaultBrowserPreference(_ preference: DefaultBrowserPreference) {
+        DispatchQueue.main.async {
+            self.defaultBrowserPreference = preference
+            self.saveDefaultBrowserPreference(preference)
+        }
+    }
+
+    func isDefaultBrowser(_ browser: Browser) -> Bool {
+        if case let .browser(browserId) = defaultBrowserPreference {
+            return browser.id == browserId
+        }
+        return false
+    }
+
+    func resetDefaultBrowserPreferenceIfInvalid(with browsers: [Browser]) {
+        guard !browsers.isEmpty else { return }
+
+        if case let .browser(browserId) = defaultBrowserPreference,
+           browsers.first(where: { $0.id == browserId }) == nil {
+            setDefaultBrowserPreference(.prompt)
+        }
+    }
+
+    private func loadDefaultBrowserPreference() -> DefaultBrowserPreference {
+        guard let storedValue = UserDefaults.standard.string(forKey: defaultBrowserPreferenceKey) else {
+            return .prompt
+        }
+
+        if storedValue == "prompt" {
+            return .prompt
+        }
+
+        if let uuid = UUID(uuidString: storedValue) {
+            return .browser(uuid)
+        }
+
+        return .prompt
+    }
+
+    private func saveDefaultBrowserPreference(_ preference: DefaultBrowserPreference) {
+        switch preference {
+        case .prompt:
+            UserDefaults.standard.set("prompt", forKey: defaultBrowserPreferenceKey)
+        case .browser(let browserId):
+            UserDefaults.standard.set(browserId.uuidString, forKey: defaultBrowserPreferenceKey)
+        }
     }
 }

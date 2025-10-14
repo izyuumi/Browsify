@@ -42,30 +42,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             button.image = NSImage(systemSymbolName: "link.circle", accessibilityDescription: "Browsify")
         }
 
-        let menu = NSMenu()
-
-        // Test picker hidden from production menu
-        // let testItem = NSMenuItem(title: "Test Picker...", action: #selector(testPicker), keyEquivalent: "t")
-        // testItem.target = self
-        // menu.addItem(testItem)
-        // menu.addItem(NSMenuItem.separator())
-
-        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: ",")
-        settingsItem.target = self
-        menu.addItem(settingsItem)
-        menu.addItem(NSMenuItem.separator())
-
-        let quitItem = NSMenuItem(title: "Quit Browsify", action: #selector(quit), keyEquivalent: "q")
-        quitItem.target = self
-        menu.addItem(quitItem)
-
-        statusItem?.menu = menu
-
         // Initialize URLHandler (which will auto-detect browsers)
-        _ = URLHandler.shared
+        let urlHandler = URLHandler.shared
+        let browserDetector = urlHandler.getBrowserDetector()
+
+        rebuildStatusMenu()
 
         // Observe showBrowserPicker changes and react immediately
-        URLHandler.shared.$showBrowserPicker
+        urlHandler.$showBrowserPicker
             .dropFirst() // Skip initial value to avoid premature firing
             .removeDuplicates() // Ignore duplicate values
             .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main) // Debounce rapid changes
@@ -75,6 +59,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 } else if !shouldShow && self?.isPickerOpen == true {
                     self?.closeBrowserPicker()
                 }
+            }
+            .store(in: &cancellables)
+
+        // Update menu when detected browsers change
+        browserDetector.$browsers
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                urlHandler.resetDefaultBrowserPreferenceIfInvalid(with: browserDetector.allBrowsers)
+                self?.rebuildStatusMenu()
+            }
+            .store(in: &cancellables)
+
+        // Update menu when default preference changes
+        urlHandler.$defaultBrowserPreference
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.rebuildStatusMenu()
             }
             .store(in: &cancellables)
 
@@ -304,5 +305,68 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func quit() {
         NSApplication.shared.terminate(self)
+    }
+
+    private func rebuildStatusMenu() {
+        DispatchQueue.main.async {
+            guard let statusItem = self.statusItem else { return }
+
+            let menu = NSMenu()
+            menu.autoenablesItems = false
+
+            let urlHandler = URLHandler.shared
+            let browserDetector = urlHandler.getBrowserDetector()
+            let defaultPreference = urlHandler.defaultBrowserPreference
+
+            // Prompt option
+            let promptItem = NSMenuItem(title: "Prompt", action: #selector(self.selectPromptOption(_:)), keyEquivalent: "")
+            promptItem.target = self
+            promptItem.state = defaultPreference == .prompt ? .on : .off
+            menu.addItem(promptItem)
+
+            // Browser entries
+            let browsers = browserDetector.browsers
+            if browsers.isEmpty {
+                let placeholder = NSMenuItem(title: "No browsers detected", action: nil, keyEquivalent: "")
+                placeholder.isEnabled = false
+                menu.addItem(placeholder)
+            } else {
+                for browser in browsers {
+                    let browserItem = NSMenuItem(title: browser.name, action: #selector(self.selectBrowserOption(_:)), keyEquivalent: "")
+                    browserItem.target = self
+                    browserItem.representedObject = browser
+                    if case let .browser(selectedId) = defaultPreference, selectedId == browser.id {
+                        browserItem.state = .on
+                    }
+                    menu.addItem(browserItem)
+                }
+            }
+
+            menu.addItem(NSMenuItem.separator())
+
+            let settingsItem = NSMenuItem(title: "Settings...", action: #selector(self.showSettings), keyEquivalent: ",")
+            settingsItem.target = self
+            menu.addItem(settingsItem)
+
+            menu.addItem(NSMenuItem.separator())
+
+            let quitItem = NSMenuItem(title: "Quit Browsify", action: #selector(self.quit), keyEquivalent: "q")
+            quitItem.target = self
+            menu.addItem(quitItem)
+
+            statusItem.menu = menu
+        }
+    }
+
+    @objc private func selectPromptOption(_ sender: NSMenuItem) {
+        URLHandler.shared.setDefaultBrowserPreference(.prompt)
+    }
+
+    @objc private func selectBrowserOption(_ sender: NSMenuItem) {
+        guard let browser = sender.representedObject as? Browser else {
+            return
+        }
+
+        URLHandler.shared.setDefaultBrowserPreference(.browser(browser.id))
     }
 }

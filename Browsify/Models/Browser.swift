@@ -45,11 +45,12 @@ struct Browser: Identifiable, Codable, Hashable {
             configuration.arguments = profile.launchArguments(for: url)
         }
 
-        NSWorkspace.shared.open([url], withApplicationAt: URL(fileURLWithPath: path), configuration: configuration) { _, error in
-            if let error = error {
-                print("Failed to open URL with \(name): \(error.localizedDescription)")
-            }
-        }
+        NSWorkspace.shared.open(
+            [url],
+            withApplicationAt: URL(fileURLWithPath: path),
+            configuration: configuration,
+            completionHandler: nil
+        )
     }
 
     /// Sends a kAEGetURL event directly to a running instance of the browser if available.
@@ -74,7 +75,6 @@ struct Browser: Identifiable, Codable, Hashable {
             _ = try appleEvent.sendEvent(options: [.neverInteract, .dontRecord], timeout: 1.0)
             return true
         } catch {
-            print("Failed to deliver URL event to running \(name): \(error.localizedDescription)")
             return false
         }
     }
