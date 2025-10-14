@@ -39,14 +39,17 @@ struct BrowserPickerView: View {
                 }
             }
         }
-        .padding(12)
+        .padding(16)
         .frame(width: dynamicWidth)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.98))
-                .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.88))
         )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.2), radius: 16, x: 0, y: 8)
         .allowsHitTesting(true)
         .onAppear {
             // Setup keyboard shortcuts for numbers 1-9 and ESC
@@ -120,8 +123,6 @@ struct BrowserIcon: View {
                 }
             }
             .padding(6)
-            .background(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
-            .cornerRadius(6)
         }
         .buttonStyle(.plain)
         .onHover { hovering in

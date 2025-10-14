@@ -124,7 +124,6 @@ struct RuleEditorView: View {
                 }
             }
             .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
 
             Divider()
 

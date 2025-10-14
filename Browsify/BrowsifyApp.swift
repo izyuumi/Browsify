@@ -13,9 +13,11 @@ struct BrowsifyApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        // Menu bar only app - Settings scene prevents empty window from appearing
         Settings {
-            EmptyView()
+            SettingsView(
+                ruleEngine: URLHandler.shared.getRuleEngine(),
+                browserDetector: URLHandler.shared.getBrowserDetector()
+            )
         }
     }
 }
@@ -27,6 +29,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var cancellables = Set<AnyCancellable>()
     var isPickerOpen = false
     var policyEnforcementTimer: Timer?
+    var settingsWindowObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide from Dock (menu bar only)
@@ -244,25 +247,59 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showSettings() {
-        DispatchQueue.main.async {
-            if self.settingsWindow == nil {
-                let settingsView = SettingsView(
-                    ruleEngine: URLHandler.shared.getRuleEngine(),
-                    browserDetector: URLHandler.shared.getBrowserDetector()
-                )
+        if let existingWindow = settingsWindow {
+            NSApp.setActivationPolicy(.regular)
+            existingWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
 
-                let hostingController = NSHostingController(rootView: settingsView)
-                let window = NSWindow(contentViewController: hostingController)
-                window.title = "Browsify Settings"
-                window.styleMask = [.titled, .closable, .resizable]
-                window.setContentSize(NSSize(width: 700, height: 500))
-                window.center()
+        let hostingController = NSHostingController(
+            rootView: SettingsView(
+                ruleEngine: URLHandler.shared.getRuleEngine(),
+                browserDetector: URLHandler.shared.getBrowserDetector()
+            )
+        )
 
-                self.settingsWindow = window
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 700, height: 500),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Settings"
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.contentViewController = hostingController
+        window.setFrameAutosaveName("BrowsifySettingsWindow")
+
+        settingsWindow = window
+
+        // Remove existing observer if any before attaching a new one
+        if let observer = settingsWindowObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+
+        settingsWindowObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            // Switch back to accessory mode when settings window closes
+            NSApp.setActivationPolicy(.accessory)
+
+            if let observer = self?.settingsWindowObserver {
+                NotificationCenter.default.removeObserver(observer)
+                self?.settingsWindowObserver = nil
             }
 
-            self.settingsWindow?.makeKeyAndOrderFront(nil)
+            self?.settingsWindow = nil
         }
+
+        // Temporarily change to regular app to present the settings window
+        NSApp.setActivationPolicy(.regular)
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc func testPicker() {

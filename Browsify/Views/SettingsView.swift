@@ -166,10 +166,7 @@ struct RuleRowView: View {
                 HStack {
                     Text(rule.matchType.rawValue)
                         .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(0.2))
-                        .cornerRadius(4)
+                        .foregroundColor(.secondary)
 
                     Text("Priority: \(rule.priority)")
                         .font(.caption)
@@ -362,19 +359,13 @@ struct BrowserRowView: View {
                     if isHidden {
                         Text("Hidden")
                             .font(.caption)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.secondary.opacity(0.2))
-                            .cornerRadius(4)
+                            .foregroundColor(.secondary)
                     }
 
                     if !isCustom {
                         Text("Auto-detected")
                             .font(.caption)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.2))
-                            .cornerRadius(4)
+                            .foregroundColor(.secondary)
                     }
                 }
                 Text(browser.bundleIdentifier)
