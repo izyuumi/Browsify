@@ -323,6 +323,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let promptItem = NSMenuItem(title: "Prompt", action: #selector(self.selectPromptOption(_:)), keyEquivalent: "")
             promptItem.target = self
             promptItem.state = defaultPreference == .prompt ? .on : .off
+            if let shortcut = self.shortcutKey(forPosition: 1) {
+                promptItem.keyEquivalent = shortcut
+                promptItem.keyEquivalentModifierMask = [.command]
+            }
             menu.addItem(promptItem)
 
             // Browser entries
@@ -332,7 +336,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 placeholder.isEnabled = false
                 menu.addItem(placeholder)
             } else {
-                for browser in browsers {
+                for (index, browser) in browsers.enumerated() {
                     let browserItem = NSMenuItem(title: browser.name, action: #selector(self.selectBrowserOption(_:)), keyEquivalent: "")
                     browserItem.target = self
                     browserItem.representedObject = browser
@@ -341,6 +345,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                     if case let .browser(selectedId) = defaultPreference, selectedId == browser.id {
                         browserItem.state = .on
+                    }
+                    if let shortcut = self.shortcutKey(forPosition: index + 2) {
+                        browserItem.keyEquivalent = shortcut
+                        browserItem.keyEquivalentModifierMask = [.command]
                     }
                     menu.addItem(browserItem)
                 }
@@ -372,6 +380,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         URLHandler.shared.setDefaultBrowserPreference(.browser(browser.id))
+    }
+
+    private func shortcutKey(forPosition position: Int) -> String? {
+        switch position {
+        case 1...9:
+            return String(position)
+        case 10:
+            return "0"
+        default:
+            return nil
+        }
     }
 
     private func menuIcon(for browser: Browser) -> NSImage? {
