@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import AppKit
 
 @main
 struct BrowsifyApp: App {
@@ -335,6 +336,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     let browserItem = NSMenuItem(title: browser.name, action: #selector(self.selectBrowserOption(_:)), keyEquivalent: "")
                     browserItem.target = self
                     browserItem.representedObject = browser
+                    if let icon = self.menuIcon(for: browser) {
+                        browserItem.image = icon
+                    }
                     if case let .browser(selectedId) = defaultPreference, selectedId == browser.id {
                         browserItem.state = .on
                     }
@@ -368,5 +372,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         URLHandler.shared.setDefaultBrowserPreference(.browser(browser.id))
+    }
+
+    private func menuIcon(for browser: Browser) -> NSImage? {
+        guard let icon = browser.iconImage else {
+            return nil
+        }
+
+        let targetSize = NSSize(width: 18, height: 18)
+        let resizedIcon = NSImage(size: targetSize)
+
+        resizedIcon.lockFocus()
+        let sourceSize = icon.size
+        let sourceRect = NSRect(origin: .zero, size: (sourceSize.width <= 0 || sourceSize.height <= 0) ? targetSize : sourceSize)
+        icon.draw(in: NSRect(origin: .zero, size: targetSize), from: sourceRect, operation: .copy, fraction: 1.0, respectFlipped: true, hints: nil)
+        resizedIcon.unlockFocus()
+        resizedIcon.isTemplate = false
+
+        return resizedIcon
     }
 }

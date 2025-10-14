@@ -5,6 +5,7 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
+import AppKit
 
 struct SettingsView: View {
     @ObservedObject var ruleEngine: RuleEngine
@@ -215,68 +216,66 @@ private extension RulesListView {
 }
 
 struct AboutView: View {
+    private var appName: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Browsify"
+    }
+
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
         return "Version \(version) (\(build))"
     }
 
+    private var appIcon: NSImage {
+        if let copiedIcon = NSApplication.shared.applicationIconImage.copy() as? NSImage {
+            copiedIcon.size = NSSize(width: 96, height: 96)
+            copiedIcon.isTemplate = false
+            return copiedIcon
+        }
+
+        return NSImage(systemSymbolName: "link.circle", accessibilityDescription: nil) ?? NSImage()
+    }
+
+    private var copyright: String? {
+        Bundle.main.infoDictionary?["NSHumanReadableCopyright"] as? String
+    }
+
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "link.circle.fill")
+        VStack(spacing: 16) {
+            Image(nsImage: appIcon)
                 .resizable()
-                .frame(width: 80, height: 80)
-                .foregroundColor(.accentColor)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 96, height: 96)
+                .cornerRadius(20)
+                .shadow(radius: 4, x: 0, y: 2)
 
-            Text("Browsify")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-
-            Text("Smart Browser Switcher")
-                .font(.headline)
-                .foregroundColor(.secondary)
+            Text(appName)
+                .font(.title2)
+                .fontWeight(.semibold)
 
             Text(appVersion)
-                .font(.caption)
+                .font(.callout)
                 .foregroundColor(.secondary)
 
-            Divider()
+            Text("Route links to the right browser without breaking your flow.")
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
                 .padding(.horizontal, 40)
 
-            VStack(alignment: .leading, spacing: 12) {
-                FeatureRow(icon: "arrow.triangle.branch", title: "Smart Routing", description: "Automatically open links in the right browser")
-                FeatureRow(icon: "person.crop.circle", title: "Profile Support", description: "Choose specific browser profiles")
-                FeatureRow(icon: "app.badge", title: "Desktop Apps", description: "Open links in native apps like Zoom and Teams")
-                FeatureRow(icon: "shield.lefthalf.filled", title: "Privacy", description: "Strip tracking parameters from URLs")
+            Divider()
+                .padding(.horizontal, 60)
+
+            if let copyright {
+                Text(copyright)
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
             }
-            .padding(.horizontal, 40)
 
             Spacer()
         }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-struct FeatureRow: View {
-    let icon: String
-    let title: String
-    let description: String
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .frame(width: 24, height: 24)
-                .foregroundColor(.accentColor)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(.body, weight: .medium))
-                Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.top, 48)
+        .padding(.bottom)
     }
 }
 
