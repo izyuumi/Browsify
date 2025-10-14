@@ -5,6 +5,7 @@
 
 import Foundation
 import Combine
+import SwiftUI
 
 class RuleEngine: ObservableObject {
     @Published var rules: [RoutingRule] = []
@@ -14,14 +15,13 @@ class RuleEngine: ObservableObject {
     }
 
     func addRule(_ rule: RoutingRule) {
-        insertSorted(rule)
+        rules.append(rule)
         saveRules()
     }
 
     func updateRule(_ rule: RoutingRule) {
         if let index = rules.firstIndex(where: { $0.id == rule.id }) {
-            rules.remove(at: index)
-            insertSorted(rule)
+            rules[index] = rule
             saveRules()
         }
     }
@@ -32,7 +32,7 @@ class RuleEngine: ObservableObject {
     }
 
     func findMatchingRule(for url: URL, sourceApp: String?) -> RoutingRule? {
-        // Rules are already sorted by priority (higher priority first)
+        // Rules are evaluated in the current order
         for rule in rules {
             if rule.matches(url: url, sourceApp: sourceApp) {
                 return rule
@@ -51,7 +51,7 @@ class RuleEngine: ObservableObject {
     private func loadRules() {
         if let data = UserDefaults.standard.data(forKey: "routingRules"),
            let decoded = try? JSONDecoder().decode([RoutingRule].self, from: data) {
-            rules = decoded.sorted { $0.priority > $1.priority }
+            rules = decoded
         } else {
             // Create some default rules
             createDefaultRules()
@@ -63,24 +63,21 @@ class RuleEngine: ObservableObject {
         let zoomRule = RoutingRule(
             matchType: .domain,
             pattern: "zoom.us",
-            target: .desktopApp(bundleId: "us.zoom.xos"),
-            priority: 100
+            target: .desktopApp(bundleId: "us.zoom.xos")
         )
 
         let teamsRule = RoutingRule(
             matchType: .domain,
             pattern: "teams.microsoft.com",
-            target: .desktopApp(bundleId: "com.microsoft.teams2"),
-            priority: 100
+            target: .desktopApp(bundleId: "com.microsoft.teams2")
         )
 
-        rules = [zoomRule, teamsRule].sorted { $0.priority > $1.priority }
+        rules = [zoomRule, teamsRule]
         saveRules()
     }
 
-    private func insertSorted(_ rule: RoutingRule) {
-        // Find the correct position to insert (higher priority first)
-        let insertIndex = rules.firstIndex { $0.priority < rule.priority } ?? rules.count
-        rules.insert(rule, at: insertIndex)
+    func moveRules(fromOffsets source: IndexSet, toOffset destination: Int) {
+        rules.move(fromOffsets: source, toOffset: destination)
+        saveRules()
     }
 }

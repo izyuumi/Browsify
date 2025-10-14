@@ -30,7 +30,7 @@ The core functionality follows this flow:
 1. **URL Interception** (BrowsifyApp.swift:95): App registers as HTTP/HTTPS handler via Info.plist, receives URLs through NSAppleEventManager
 2. **URL Cleaning** (URLCleaner.swift): Strips tracking parameters (utm_*, fbclid, etc.) if enabled
 3. **Desktop App Routing** (URLHandler.swift:32): Checks if URL matches desktop app patterns (Zoom, Teams, Slack, etc.)
-4. **Rule Matching** (URLHandler.swift:40): RuleEngine evaluates routing rules by priority
+4. **Rule Matching** (URLHandler.swift:40): RuleEngine evaluates routing rules in list order (top-most rule wins)
 5. **Browser Picker** (URLHandler.swift:46): If no match, shows interactive browser selection panel
 6. **URL Opening** (Browser.swift:33): Opens URL in selected browser with optional profile
 
@@ -43,7 +43,7 @@ The core functionality follows this flow:
 - Uses Combine's @Published properties to trigger UI updates
 
 **RuleEngine (Services/RuleEngine.swift)**
-- Evaluates routing rules in priority order (higher priority first)
+- Evaluates routing rules in the stored order (users can reorder the list; first match wins)
 - Rules persist to UserDefaults as JSON
 - Three match types: domain, urlPattern (supports wildcards), sourceApp
 - Targets can be browser+profile or desktop app bundle ID

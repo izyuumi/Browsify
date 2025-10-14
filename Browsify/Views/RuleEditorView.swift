@@ -14,7 +14,6 @@ struct RuleEditorView: View {
 
     @State private var matchType: RuleMatchType
     @State private var pattern: String
-    @State private var priority: Int
     @State private var selectedBrowser: Browser?
     @State private var selectedProfile: BrowserProfile?
     @State private var selectedDesktopApp: DesktopApp?
@@ -32,7 +31,6 @@ struct RuleEditorView: View {
 
         _matchType = State(initialValue: rule?.matchType ?? .domain)
         _pattern = State(initialValue: rule?.pattern ?? "")
-        _priority = State(initialValue: rule?.priority ?? 0)
 
         if let rule = rule {
             switch rule.target {
@@ -44,7 +42,21 @@ struct RuleEditorView: View {
                 }
             case .desktopApp(let bundleId):
                 _targetType = State(initialValue: .desktopApp)
-                _selectedDesktopApp = State(initialValue: DesktopApp.knownApps.first(where: { $0.bundleIdentifier == bundleId }))
+                let foundApp = DesktopApp.knownApps.first(where: { $0.bundleIdentifier == bundleId })
+                NSLog("[RuleEditorView] Loading rule with desktop app target: \(bundleId)")
+                if let app = foundApp {
+                    NSLog("[RuleEditorView] Found app: \(app.name), isInstalled: \(app.isInstalled)")
+                    if !app.isInstalled {
+                        NSLog("[RuleEditorView] WARNING: Selected desktop app '\(app.name)' is not installed - clearing selection")
+                        // Don't set an uninstalled app as selection - it will cause Picker tag errors
+                        _selectedDesktopApp = State(initialValue: nil)
+                    } else {
+                        _selectedDesktopApp = State(initialValue: foundApp)
+                    }
+                } else {
+                    NSLog("[RuleEditorView] WARNING: Desktop app with bundleId '\(bundleId)' not found in knownApps")
+                    _selectedDesktopApp = State(initialValue: nil)
+                }
             }
         }
     }
@@ -79,13 +91,6 @@ struct RuleEditorView: View {
                         .textFieldStyle(.roundedBorder)
 
                     Text(matchTypeHint)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Section("Priority") {
-                    Stepper("Priority: \(priority)", value: $priority, in: 0...100)
-                    Text("Higher priority rules are matched first")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -182,8 +187,7 @@ struct RuleEditorView: View {
             isEnabled: rule?.isEnabled ?? true,
             matchType: matchType,
             pattern: pattern,
-            target: target,
-            priority: priority
+            target: target
         )
 
         if rule != nil {

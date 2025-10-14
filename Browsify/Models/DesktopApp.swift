@@ -53,7 +53,22 @@ struct DesktopApp: Identifiable, Hashable {
     }
 
     func openURL(_ url: URL) {
-        NSWorkspace.shared.open(url)
+        NSLog("[DesktopApp] openURL called for \(name) (bundleId: \(bundleIdentifier))")
+        NSLog("[DesktopApp] isInstalled: \(isInstalled)")
+
+        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
+            NSLog("[DesktopApp] ERROR: Could not find application URL for \(name) - app may not be installed")
+            return
+        }
+
+        NSLog("[DesktopApp] Opening URL with app at: \(appURL.path)")
+        NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration()) { app, error in
+            if let error = error {
+                NSLog("[DesktopApp] ERROR opening URL: \(error.localizedDescription)")
+            } else if let app = app {
+                NSLog("[DesktopApp] Successfully opened in \(app.localizedName ?? "unknown")")
+            }
+        }
     }
 
     static let knownApps: [DesktopApp] = [

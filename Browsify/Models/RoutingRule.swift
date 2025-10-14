@@ -31,15 +31,19 @@ struct RoutingRule: Identifiable, Codable {
     var matchType: RuleMatchType
     var pattern: String
     var target: RuleTarget
-    var priority: Int
 
-    init(id: UUID = UUID(), isEnabled: Bool = true, matchType: RuleMatchType, pattern: String, target: RuleTarget, priority: Int = 0) {
+    init(
+        id: UUID = UUID(),
+        isEnabled: Bool = true,
+        matchType: RuleMatchType,
+        pattern: String,
+        target: RuleTarget
+    ) {
         self.id = id
         self.isEnabled = isEnabled
         self.matchType = matchType
         self.pattern = pattern
         self.target = target
-        self.priority = priority
     }
 
     func matches(url: URL, sourceApp: String?) -> Bool {
