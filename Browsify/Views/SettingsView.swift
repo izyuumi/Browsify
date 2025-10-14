@@ -259,11 +259,12 @@ struct BrowsersListView: View {
 
     @State private var showingAddBrowser = false
     @State private var editingBrowser: Browser?
+    @State private var orderedBrowsers: [Browser] = []
 
     var body: some View {
         VStack {
             List {
-                ForEach(browserDetector.allBrowsers) { browser in
+                ForEach(orderedBrowsers) { browser in
                     BrowserRowView(
                         browser: browser,
                         browserDetector: browserDetector
@@ -271,6 +272,7 @@ struct BrowsersListView: View {
                         editingBrowser = browser
                     }
                 }
+                .onMove(perform: moveBrowsers)
             }
 
             Divider()
@@ -289,6 +291,12 @@ struct BrowsersListView: View {
             }
             .padding()
         }
+        .onAppear {
+            orderedBrowsers = browserDetector.allBrowsers
+        }
+        .onChange(of: browserDetector.allBrowsers) { _, newBrowsers in
+            orderedBrowsers = newBrowsers
+        }
         .sheet(isPresented: $showingAddBrowser) {
             BrowserEditorView(
                 browserDetector: browserDetector,
@@ -301,6 +309,11 @@ struct BrowsersListView: View {
                 browser: browser
             )
         }
+    }
+
+    private func moveBrowsers(from source: IndexSet, to destination: Int) {
+        orderedBrowsers.move(fromOffsets: source, toOffset: destination)
+        browserDetector.saveBrowserDisplayOrder(orderedBrowsers)
     }
 }
 

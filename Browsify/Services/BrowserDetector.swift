@@ -13,6 +13,7 @@ class BrowserDetector: ObservableObject {
 
     private let customBrowsersKey = "customBrowsers"
     private let hiddenBrowsersKey = "hiddenBrowsers"
+    private let browserOrderKey = "browserOrder"
 
     // Cache detected browsers to avoid redundant filesystem scans
     private var cachedDetectedBrowsers: [Browser] = []
@@ -69,6 +70,12 @@ class BrowserDetector: ObservableObject {
         return hiddenIds.contains(browser.id)
     }
 
+    func saveBrowserDisplayOrder(_ browsers: [Browser]) {
+        let order = browsers.map { $0.id }
+        saveBrowserOrder(order)
+        updateBrowserVisibility()
+    }
+
     private func loadCustomBrowsers() -> [Browser] {
         guard let data = UserDefaults.standard.data(forKey: customBrowsersKey),
               let browsers = try? JSONDecoder().decode([Browser].self, from: data) else {
@@ -94,6 +101,20 @@ class BrowserDetector: ObservableObject {
     private func saveHiddenBrowserIds(_ ids: Set<UUID>) {
         if let data = try? JSONEncoder().encode(ids) {
             UserDefaults.standard.set(data, forKey: hiddenBrowsersKey)
+        }
+    }
+
+    private func loadBrowserOrder() -> [UUID] {
+        guard let data = UserDefaults.standard.data(forKey: browserOrderKey),
+              let order = try? JSONDecoder().decode([UUID].self, from: data) else {
+            return []
+        }
+        return order
+    }
+
+    private func saveBrowserOrder(_ order: [UUID]) {
+        if let data = try? JSONEncoder().encode(order) {
+            UserDefaults.standard.set(data, forKey: browserOrderKey)
         }
     }
 
@@ -153,6 +174,31 @@ class BrowserDetector: ObservableObject {
     /// Use this instead of detectBrowsers() when only hide/unhide operations occur.
     private func updateBrowserVisibility() {
         let hiddenIds = loadHiddenBrowserIds()
+
+        let savedOrder = loadBrowserOrder()
+
+        if !savedOrder.isEmpty {
+            // Create lookup dictionary for fast access
+            let browserDict = cachedDetectedBrowsers.reduce(into: [UUID: Browser]()) { dict, browser in
+                dict[browser.id] = browser
+            }
+
+            // Build ordered array
+            var orderedBrowsers: [Browser] = []
+            for id in savedOrder {
+                if let browser = browserDict[id] {
+                    orderedBrowsers.append(browser)
+                }
+            }
+
+            // Add any browsers not in saved order (newly detected browsers)
+            let orderedIds = Set(savedOrder)
+            let remainingBrowsers = cachedDetectedBrowsers.filter { !orderedIds.contains($0.id) }
+            orderedBrowsers.append(contentsOf: remainingBrowsers)
+
+            // Apply ordering to cached browsers
+            cachedDetectedBrowsers = orderedBrowsers
+        }
 
         DispatchQueue.main.async {
             // allBrowsers includes hidden browsers (for settings view)
