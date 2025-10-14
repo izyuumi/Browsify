@@ -5,6 +5,7 @@
 
 import Foundation
 import AppKit
+import ApplicationServices
 
 struct Browser: Identifiable, Codable, Hashable {
     let id: UUID
@@ -31,10 +32,16 @@ struct Browser: Identifiable, Codable, Hashable {
     }
 
     func openURL(_ url: URL, profile: BrowserProfile? = nil) {
+        // When no explicit profile is requested, try sending the URL to an existing instance first
+        if profile == nil, openInRunningInstance(url) {
+            return
+        }
+
         let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = false
 
         if let profile = profile, !profile.profilePath.isEmpty {
-            // Open with specific profile
+            // Launching with a specific profile still requires command-line arguments
             configuration.arguments = profile.launchArguments(for: url)
         }
 
@@ -42,6 +49,33 @@ struct Browser: Identifiable, Codable, Hashable {
             if let error = error {
                 print("Failed to open URL with \(name): \(error.localizedDescription)")
             }
+        }
+    }
+
+    /// Sends a kAEGetURL event directly to a running instance of the browser if available.
+    /// Returns true when delivery succeeds so we can avoid launching a new window.
+    private func openInRunningInstance(_ url: URL) -> Bool {
+        guard !NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).isEmpty else {
+            return false
+        }
+
+        let targetDescriptor = NSAppleEventDescriptor(bundleIdentifier: bundleIdentifier)
+        let appleEvent = NSAppleEventDescriptor.appleEvent(
+            withEventClass: AEEventClass(kInternetEventClass),
+            eventID: AEEventID(kAEGetURL),
+            targetDescriptor: targetDescriptor,
+            returnID: AEReturnID(kAutoGenerateReturnID),
+            transactionID: AETransactionID(kAnyTransactionID)
+        )
+
+        appleEvent.setParam(NSAppleEventDescriptor(string: url.absoluteString), forKeyword: keyDirectObject)
+
+        do {
+            _ = try appleEvent.sendEvent(options: [.neverInteract, .dontRecord], timeout: 1.0)
+            return true
+        } catch {
+            print("Failed to deliver URL event to running \(name): \(error.localizedDescription)")
+            return false
         }
     }
 }
