@@ -94,6 +94,8 @@ struct RulesListView: View {
     @State private var showingAddRule = false
     @State private var editingRule: RoutingRule?
     @State private var isReorderMode = false
+    @State private var showingImportAlert = false
+    @State private var importedData: Data?
 
     var body: some View {
         VStack {
@@ -137,8 +139,33 @@ struct RulesListView: View {
                 .buttonStyle(.bordered)
 
                 Spacer()
+
+                Button(action: importRules) {
+                    Label("Import", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.bordered)
+
+                Button(action: exportRules) {
+                    Label("Export", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(.bordered)
             }
             .padding()
+        }
+        .alert("Import Rules", isPresented: $showingImportAlert) {
+            Button("Replace All", role: .destructive) {
+                if let data = importedData {
+                    try? ruleEngine.importRules(from: data, replacing: true)
+                }
+            }
+            Button("Merge") {
+                if let data = importedData {
+                    try? ruleEngine.importRules(from: data, replacing: false)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Replace all existing rules or merge with current rules?")
         }
         .sheet(isPresented: $showingAddRule) {
             RuleEditorView(
@@ -211,6 +238,30 @@ private extension RulesListView {
     func toggleReorderMode() {
         withAnimation {
             isReorderMode.toggle()
+        }
+    }
+
+    func exportRules() {
+        guard let data = ruleEngine.exportRules() else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "browsify-rules.json"
+        panel.canCreateDirectories = true
+        if panel.runModal() == .OK, let url = panel.url {
+            try? data.write(to: url)
+        }
+    }
+
+    func importRules() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.json]
+        if panel.runModal() == .OK, let url = panel.url,
+           let data = try? Data(contentsOf: url) {
+            importedData = data
+            showingImportAlert = true
         }
     }
 }
