@@ -22,12 +22,25 @@ struct BrowserPickerView: View {
         VStack(spacing: 12) {
             // URL display
             if let url = urlHandler.pendingURL {
-                Text(url.absoluteString)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: .infinity)
+                HStack(spacing: 4) {
+                    Text(url.absoluteString)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(url.absoluteString, forType: .string)
+                        urlHandler.cancelPicker()
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Copy cleaned URL (⌘C)")
+                }
+                .frame(maxWidth: .infinity)
             }
 
             // Browser list with numbers
@@ -56,6 +69,16 @@ struct BrowserPickerView: View {
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 // Check for ESC key
                 if event.keyCode == 53 { // ESC key code
+                    self.urlHandler.cancelPicker()
+                    return nil
+                }
+
+                // Cmd+C to copy cleaned URL to clipboard
+                if event.modifierFlags.contains(.command),
+                   event.charactersIgnoringModifiers == "c",
+                   let url = self.urlHandler.pendingURL {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(url.absoluteString, forType: .string)
                     self.urlHandler.cancelPicker()
                     return nil
                 }
