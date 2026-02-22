@@ -33,12 +33,79 @@ struct SettingsView: View {
                 Label("Rules", systemImage: "list.bullet")
             }
 
+            HistoryView()
+                .tabItem {
+                    Label("History", systemImage: "clock.arrow.circlepath")
+                }
+
             AboutView()
                 .tabItem {
                     Label("About", systemImage: "info.circle")
                 }
         }
         .frame(width: 700, height: 500)
+    }
+}
+
+struct HistoryView: View {
+    @ObservedObject private var history = URLHistory.shared
+
+    var body: some View {
+        VStack {
+            if history.entries.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 32))
+                        .foregroundColor(.secondary)
+                    Text("No URLs opened yet")
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List(history.entries) { entry in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.url)
+                                .font(.system(.caption, design: .monospaced))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            HStack(spacing: 6) {
+                                Text(entry.browserName)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                if entry.ruleMatched {
+                                    Text("Rule")
+                                        .font(.caption2)
+                                        .padding(.horizontal, 4)
+                                        .padding(.vertical, 1)
+                                        .background(Color.accentColor.opacity(0.15))
+                                        .cornerRadius(3)
+                                }
+                                Text(entry.date, style: .relative)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        Spacer()
+                    }
+                }
+            }
+
+            Divider()
+
+            HStack {
+                Text("\(history.entries.count) entries")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button("Clear History") {
+                    history.clear()
+                }
+                .buttonStyle(.bordered)
+                .disabled(history.entries.isEmpty)
+            }
+            .padding()
+        }
     }
 }
 
