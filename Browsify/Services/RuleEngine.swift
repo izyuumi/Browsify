@@ -80,4 +80,25 @@ class RuleEngine: ObservableObject {
         rules.move(fromOffsets: source, toOffset: destination)
         saveRules()
     }
+
+    // MARK: - Import / Export
+
+    func exportRules() -> Data? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try? encoder.encode(rules)
+    }
+
+    func importRules(from data: Data, replacing: Bool) throws {
+        let decoder = JSONDecoder()
+        let imported = try decoder.decode([RoutingRule].self, from: data)
+        if replacing {
+            rules = imported
+        } else {
+            let existingIds = Set(rules.map(\.id))
+            let newRules = imported.filter { !existingIds.contains($0.id) }
+            rules.append(contentsOf: newRules)
+        }
+        saveRules()
+    }
 }
