@@ -33,9 +33,12 @@ class RuleEngine: ObservableObject {
 
     func findMatchingRule(for url: URL, sourceApp: String?) -> RoutingRule? {
         // Rules are evaluated in the current order
-        for rule in rules {
+        for (index, rule) in rules.enumerated() {
             if rule.matches(url: url, sourceApp: sourceApp) {
-                return rule
+                rules[index].matchCount += 1
+                rules[index].lastMatchedAt = Date()
+                saveRules()
+                return rules[index]
             }
         }
 

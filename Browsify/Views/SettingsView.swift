@@ -177,10 +177,19 @@ struct RuleRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(rule.pattern)
                     .font(.system(.body, weight: .medium))
-                HStack {
+                HStack(spacing: 8) {
                     Text(rule.matchType.rawValue)
                         .font(.caption)
                         .foregroundColor(.secondary)
+                    if rule.matchCount > 0 {
+                        Text("\(rule.matchCount) match\(rule.matchCount == 1 ? "" : "es")")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Color.accentColor.opacity(0.1))
+                            .cornerRadius(3)
+                    }
                 }
             }
 
