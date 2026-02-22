@@ -9,6 +9,7 @@ struct BrowserPickerView: View {
     @ObservedObject var urlHandler: URLHandler
     @ObservedObject var browserDetector: BrowserDetector
     @State private var eventMonitor: Any?
+    @State private var rememberDomain = false
 
     private var dynamicWidth: CGFloat {
         let browserCount = CGFloat(browserDetector.browsers.count)
@@ -37,6 +38,18 @@ struct BrowserPickerView: View {
                         openWithBrowser(browser)
                     }
                 }
+            }
+
+            // Remember domain toggle
+            if let url = urlHandler.pendingURL, url.host != nil {
+                Toggle(isOn: $rememberDomain) {
+                    Text("Always open \(url.host ?? "this domain") here")
+                        .font(.system(.caption2))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                .toggleStyle(.switch)
+                .controlSize(.mini)
             }
         }
         .padding(16)
@@ -85,6 +98,18 @@ struct BrowserPickerView: View {
 
     private func openWithBrowser(_ browser: Browser) {
         NSLog("[BrowserPickerView] Opening URL with browser: \(browser.name)")
+
+        // Create a domain rule if "Remember" is checked
+        if rememberDomain, let domain = urlHandler.pendingURL?.host {
+            let rule = RoutingRule(
+                matchType: .domain,
+                pattern: domain,
+                target: .browser(browserId: browser.id, profileId: nil)
+            )
+            urlHandler.getRuleEngine().addRule(rule)
+            NSLog("[BrowserPickerView] Created domain rule: \(domain) → \(browser.name)")
+        }
+
         urlHandler.openWithBrowser(browser, profile: nil)
     }
 }
