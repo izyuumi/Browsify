@@ -75,6 +75,7 @@ class URLHandler: NSObject, ObservableObject {
             if let browser = browserDetector.browsers.first(where: { $0.id == browserId }) {
                 let profile = browser.profiles.first(where: { $0.id == profileId })
                 browser.openURL(url, profile: profile)
+                URLHistory.shared.add(url: url.absoluteString, browserName: browser.name, ruleMatched: true)
             }
 
         case .desktopApp(let bundleId):
@@ -109,6 +110,7 @@ class URLHandler: NSObject, ObservableObject {
 
         // Open the URL first
         browser.openURL(url, profile: profile)
+        URLHistory.shared.add(url: url.absoluteString, browserName: browser.name, ruleMatched: false)
 
         // Clear pending state and close picker
         DispatchQueue.main.async {
