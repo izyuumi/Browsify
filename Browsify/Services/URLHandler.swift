@@ -25,11 +25,14 @@ class URLHandler: NSObject, ObservableObject {
     private let ruleEngine = RuleEngine()
     private let urlCleaner = URLCleaner.shared
     private let defaultBrowserPreferenceKey = "defaultBrowserPreference"
+    private let domainBrowserMapKey = "domainBrowserMap"
+    private var domainBrowserMap: [String: String] = [:]
 
     private override init() {
         super.init()
         // URL events are handled by AppDelegate
         defaultBrowserPreference = loadDefaultBrowserPreference()
+        domainBrowserMap = loadDomainBrowserMap()
     }
 
     func handleURL(_ url: URL, sourceApp: String?) {
@@ -50,6 +53,13 @@ class URLHandler: NSObject, ObservableObject {
         // Check routing rules
         if let matchingRule = ruleEngine.findMatchingRule(for: cleanedURL, sourceApp: sourceApp) {
             applyRule(matchingRule, to: cleanedURL)
+            return
+        }
+
+        // Check domain-specific browser memory (more specific than global default)
+        if let remembered = rememberedBrowser(for: cleanedURL) {
+            NSLog("[URLHandler] Using remembered browser '\(remembered.name)' for domain of URL: \(cleanedURL.absoluteString)")
+            remembered.openURL(cleanedURL, profile: nil)
             return
         }
 
@@ -107,6 +117,9 @@ class URLHandler: NSObject, ObservableObject {
     func openWithBrowser(_ browser: Browser, profile: BrowserProfile? = nil) {
         guard let url = pendingURL else { return }
 
+        // Remember this browser for the domain so future visits auto-open it
+        saveRememberedBrowser(browser, for: url)
+
         // Open the URL first
         browser.openURL(url, profile: profile)
 
@@ -116,6 +129,19 @@ class URLHandler: NSObject, ObservableObject {
             self.sourceApplication = nil
             self.showBrowserPicker = false
         }
+    }
+
+    /// Returns the browser previously used for the domain of the given URL, if any.
+    func rememberedBrowser(for url: URL) -> Browser? {
+        guard let domain = extractDomain(from: url) else { return nil }
+        guard let bundleId = domainBrowserMap[domain] else { return nil }
+        return browserDetector.browsers.first(where: { $0.bundleIdentifier == bundleId })
+    }
+
+    /// Returns the bundle identifier of the remembered browser for the current pending URL, if any.
+    func rememberedBrowserBundleId(for url: URL) -> String? {
+        guard let domain = extractDomain(from: url) else { return nil }
+        return domainBrowserMap[domain]
     }
 
     func cancelPicker() {
@@ -181,5 +207,25 @@ class URLHandler: NSObject, ObservableObject {
         case .browser(let browserId):
             UserDefaults.standard.set(browserId.uuidString, forKey: defaultBrowserPreferenceKey)
         }
+    }
+
+    // MARK: - Domain Browser Memory
+
+    /// Extracts a normalised domain (without "www." prefix) from a URL.
+    private func extractDomain(from url: URL) -> String? {
+        guard let host = url.host, !host.isEmpty else { return nil }
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    }
+
+    /// Persists a domain → browser mapping so the same browser is auto-selected next time.
+    private func saveRememberedBrowser(_ browser: Browser, for url: URL) {
+        guard let domain = extractDomain(from: url) else { return }
+        domainBrowserMap[domain] = browser.bundleIdentifier
+        UserDefaults.standard.set(domainBrowserMap, forKey: domainBrowserMapKey)
+        NSLog("[URLHandler] Remembered browser '\(browser.name)' for domain '\(domain)'")
+    }
+
+    private func loadDomainBrowserMap() -> [String: String] {
+        return UserDefaults.standard.dictionary(forKey: domainBrowserMapKey) as? [String: String] ?? [:]
     }
 }
