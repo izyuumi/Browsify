@@ -221,7 +221,8 @@ class URLHandler: NSObject, ObservableObject {
     /// Extracts a normalised domain (without "www." prefix) from a URL.
     private func extractDomain(from url: URL) -> String? {
         guard let host = url.host, !host.isEmpty else { return nil }
-        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+        let normalized = host.lowercased()
+        return normalized.hasPrefix("www.") ? String(normalized.dropFirst(4)) : normalized
     }
 
     /// Persists a domain → browser mapping so the same browser is auto-selected next time.
