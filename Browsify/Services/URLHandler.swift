@@ -13,6 +13,7 @@ enum DefaultBrowserPreference: Equatable {
     case browser(UUID)
 }
 
+@MainActor
 class URLHandler: NSObject, ObservableObject {
     static let shared = URLHandler()
 
@@ -26,6 +27,7 @@ class URLHandler: NSObject, ObservableObject {
     private let urlCleaner = URLCleaner.shared
     private let defaultBrowserPreferenceKey = "defaultBrowserPreference"
     private let domainBrowserMapKey = "domainBrowserMap"
+    private let maxDomainBrowserMapSize = 500
     private var domainBrowserMap: [String: String] = [:]
 
     private override init() {
@@ -72,11 +74,9 @@ class URLHandler: NSObject, ObservableObject {
         }
 
         // No rule matched - show browser picker
-        DispatchQueue.main.async {
-            self.pendingURL = cleanedURL
-            self.sourceApplication = sourceApp
-            self.showBrowserPicker = true
-        }
+        pendingURL = cleanedURL
+        sourceApplication = sourceApp
+        showBrowserPicker = true
     }
 
     private func applyRule(_ rule: RoutingRule, to url: URL) {
@@ -91,13 +91,13 @@ class URLHandler: NSObject, ObservableObject {
             NSLog("[URLHandler] Applying rule with desktop app target: \(bundleId)")
             if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
                 NSLog("[URLHandler] Found app at: \(appURL.path)")
-                NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration()) { app, error in
+                NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration()) { [weak self] app, error in
                     if let error = error {
                         NSLog("[URLHandler] ERROR: Failed to open with desktop app: \(error.localizedDescription)")
                         // Fallback to browser picker on error
-                        DispatchQueue.main.async {
-                            self.pendingURL = url
-                            self.showBrowserPicker = true
+                        Task { @MainActor [weak self] in
+                            self?.pendingURL = url
+                            self?.showBrowserPicker = true
                         }
                     } else {
                         NSLog("[URLHandler] Successfully opened URL with desktop app")
@@ -106,10 +106,8 @@ class URLHandler: NSObject, ObservableObject {
             } else {
                 NSLog("[URLHandler] ERROR: Desktop app with bundleId '\(bundleId)' not found - showing browser picker as fallback")
                 // Show browser picker when desktop app is not installed
-                DispatchQueue.main.async {
-                    self.pendingURL = url
-                    self.showBrowserPicker = true
-                }
+                pendingURL = url
+                showBrowserPicker = true
             }
         }
     }
@@ -124,15 +122,13 @@ class URLHandler: NSObject, ObservableObject {
         browser.openURL(url, profile: profile)
 
         // Clear pending state and close picker
-        DispatchQueue.main.async {
-            self.pendingURL = nil
-            self.sourceApplication = nil
-            self.showBrowserPicker = false
-        }
+        pendingURL = nil
+        sourceApplication = nil
+        showBrowserPicker = false
     }
 
     /// Returns the browser previously used for the domain of the given URL, if any.
-    func rememberedBrowser(for url: URL) -> Browser? {
+    private func rememberedBrowser(for url: URL) -> Browser? {
         guard let domain = extractDomain(from: url) else { return nil }
         guard let bundleId = domainBrowserMap[domain] else { return nil }
         return browserDetector.browsers.first(where: { $0.bundleIdentifier == bundleId })
@@ -144,13 +140,26 @@ class URLHandler: NSObject, ObservableObject {
         return domainBrowserMap[domain]
     }
 
+    /// Removes the remembered browser for the domain of the given URL.
+    func clearRememberedBrowser(for url: URL) {
+        guard let domain = extractDomain(from: url) else { return }
+        domainBrowserMap.removeValue(forKey: domain)
+        UserDefaults.standard.set(domainBrowserMap, forKey: domainBrowserMapKey)
+        NSLog("[URLHandler] Cleared remembered browser for domain '\(domain)'")
+    }
+
+    /// Removes all remembered browser–domain associations.
+    func clearAllRememberedBrowsers() {
+        domainBrowserMap.removeAll()
+        UserDefaults.standard.removeObject(forKey: domainBrowserMapKey)
+        NSLog("[URLHandler] Cleared all remembered browsers")
+    }
+
     func cancelPicker() {
         // Called when user cancels without selecting a browser
-        DispatchQueue.main.async {
-            self.pendingURL = nil
-            self.sourceApplication = nil
-            self.showBrowserPicker = false
-        }
+        pendingURL = nil
+        sourceApplication = nil
+        showBrowserPicker = false
     }
 
     func getBrowserDetector() -> BrowserDetector {
@@ -162,10 +171,8 @@ class URLHandler: NSObject, ObservableObject {
     }
 
     func setDefaultBrowserPreference(_ preference: DefaultBrowserPreference) {
-        DispatchQueue.main.async {
-            self.defaultBrowserPreference = preference
-            self.saveDefaultBrowserPreference(preference)
-        }
+        defaultBrowserPreference = preference
+        saveDefaultBrowserPreference(preference)
     }
 
     func isDefaultBrowser(_ browser: Browser) -> Bool {
@@ -218,9 +225,16 @@ class URLHandler: NSObject, ObservableObject {
     }
 
     /// Persists a domain → browser mapping so the same browser is auto-selected next time.
+    /// Enforces a cap of `maxDomainBrowserMapSize` entries, evicting excess entries when exceeded.
     private func saveRememberedBrowser(_ browser: Browser, for url: URL) {
         guard let domain = extractDomain(from: url) else { return }
         domainBrowserMap[domain] = browser.bundleIdentifier
+        // Enforce size cap: evict excess entries when limit is exceeded
+        if domainBrowserMap.count > maxDomainBrowserMapSize {
+            let excess = domainBrowserMap.count - maxDomainBrowserMapSize
+            let keysToRemove = Array(domainBrowserMap.keys.prefix(excess))
+            keysToRemove.forEach { domainBrowserMap.removeValue(forKey: $0) }
+        }
         UserDefaults.standard.set(domainBrowserMap, forKey: domainBrowserMapKey)
         NSLog("[URLHandler] Remembered browser '\(browser.name)' for domain '\(domain)'")
     }

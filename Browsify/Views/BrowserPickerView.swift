@@ -37,12 +37,13 @@ struct BrowserPickerView: View {
             }
 
             // Browser list with numbers
+            let remembered = rememberedBundleId
             HStack(spacing: 12) {
                 ForEach(Array(browserDetector.browsers.enumerated()), id: \.element.id) { index, browser in
                     BrowserIcon(
                         browser: browser,
                         number: index + 1,
-                        isRemembered: browser.bundleIdentifier == rememberedBundleId
+                        isRemembered: browser.bundleIdentifier == remembered
                     ) {
                         openWithBrowser(browser)
                     }
