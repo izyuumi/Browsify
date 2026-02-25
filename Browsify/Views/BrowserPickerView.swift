@@ -121,10 +121,20 @@ struct BrowserIcon: View {
                         .frame(width: 56, height: 56)
                         .foregroundColor(.secondary)
                 }
+
+                // Browser name shown on hover (always in hierarchy to avoid height flicker)
+                Text(browser.name)
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .opacity(isHovered ? 1 : 0)
             }
             .padding(6)
+            .animation(.easeInOut(duration: 0.15), value: isHovered)
         }
         .buttonStyle(.plain)
+        .help(browser.name)
         .onHover { hovering in
             isHovered = hovering
             if hovering {
