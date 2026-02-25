@@ -10,6 +10,12 @@ struct BrowserPickerView: View {
     @ObservedObject var browserDetector: BrowserDetector
     @State private var eventMonitor: Any?
 
+    /// The bundle identifier of the browser previously used for this URL's domain, if any.
+    private var rememberedBundleId: String? {
+        guard let url = urlHandler.pendingURL else { return nil }
+        return urlHandler.rememberedBrowserBundleId(for: url)
+    }
+
     private var dynamicWidth: CGFloat {
         let browserCount = CGFloat(browserDetector.browsers.count)
         let iconWidth: CGFloat = 80 // 64px icon + 16px spacing
@@ -31,9 +37,14 @@ struct BrowserPickerView: View {
             }
 
             // Browser list with numbers
+            let remembered = rememberedBundleId
             HStack(spacing: 12) {
                 ForEach(Array(browserDetector.browsers.enumerated()), id: \.element.id) { index, browser in
-                    BrowserIcon(browser: browser, number: index + 1) {
+                    BrowserIcon(
+                        browser: browser,
+                        number: index + 1,
+                        isRemembered: browser.bundleIdentifier == remembered
+                    ) {
                         openWithBrowser(browser)
                     }
                 }
@@ -92,6 +103,8 @@ struct BrowserPickerView: View {
 struct BrowserIcon: View {
     let browser: Browser
     let number: Int
+    /// Whether this browser was the last one used for the current URL's domain.
+    var isRemembered: Bool = false
     let action: () -> Void
 
     @State private var isHovered = false
@@ -105,21 +118,30 @@ struct BrowserIcon: View {
                 // Number above icon
                 Text("\(number)")
                     .font(.system(.caption, design: .rounded))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(isRemembered ? .accentColor : .secondary)
                     .fontWeight(.semibold)
 
-                // Browser icon
-                if let icon = browser.iconImage {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 56, height: 56)
-                } else {
-                    Image(systemName: "app.fill")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 56, height: 56)
-                        .foregroundColor(.secondary)
+                // Browser icon with optional remembered-browser ring
+                ZStack {
+                    if let icon = browser.iconImage {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 56, height: 56)
+                    } else {
+                        Image(systemName: "app.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 56, height: 56)
+                            .foregroundColor(.secondary)
+                    }
+
+                    // Highlight ring for remembered browser
+                    if isRemembered {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(Color.accentColor, lineWidth: 2.5)
+                            .frame(width: 60, height: 60)
+                    }
                 }
 
                 // Browser name shown on hover (always in hierarchy to avoid height flicker)
