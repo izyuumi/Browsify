@@ -66,6 +66,9 @@ struct RoutingRule: Identifiable, Codable {
 
     // MARK: - Wildcard Matching
 
+    /// Cache of compiled NSRegularExpression objects keyed by wildcard pattern.
+    private static var regexCache: [String: NSRegularExpression] = [:]
+
     /// Matches `text` against `pattern`, where `*` is a wildcard that matches
     /// any sequence of characters (including none). Falls back to substring
     /// containment when the pattern contains no wildcards.
@@ -77,13 +80,24 @@ struct RoutingRule: Identifiable, Codable {
         // Build a regex from the wildcard pattern:
         //   1. Escape regex metacharacters (except *)
         //   2. Replace * with .*
-        let escaped = NSRegularExpression.escapedPattern(for: pattern)
-            .replacingOccurrences(of: "\\*", with: ".*")
-        guard let regex = try? NSRegularExpression(
-            pattern: "^" + escaped + "$",
-            options: [.caseInsensitive]
-        ) else {
-            return text.lowercased().contains(pattern.lowercased())
+        let regexPattern: String = {
+            let escaped = NSRegularExpression.escapedPattern(for: pattern)
+                .replacingOccurrences(of: "\\*", with: ".*")
+            return "^" + escaped + "$"
+        }()
+
+        let regex: NSRegularExpression
+        if let cached = regexCache[regexPattern] {
+            regex = cached
+        } else {
+            guard let compiled = try? NSRegularExpression(
+                pattern: regexPattern,
+                options: [.caseInsensitive]
+            ) else {
+                return text.lowercased().contains(pattern.lowercased())
+            }
+            regexCache[regexPattern] = compiled
+            regex = compiled
         }
 
         let range = NSRange(text.startIndex..., in: text)

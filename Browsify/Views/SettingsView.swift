@@ -190,13 +190,20 @@ struct RuleRowView: View {
         }
     }
 
+    private static var appIconCache: [String: NSImage] = [:]
+
     private var targetIcon: NSImage? {
         switch rule.target {
         case .browser(let browserId, _):
             return browserDetector.allBrowsers.first(where: { $0.id == browserId })?.iconImage
         case .desktopApp(let bundleId):
+            if let cached = Self.appIconCache[bundleId] {
+                return cached
+            }
             if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
-                return NSWorkspace.shared.icon(forFile: appURL.path)
+                let icon = NSWorkspace.shared.icon(forFile: appURL.path)
+                Self.appIconCache[bundleId] = icon
+                return icon
             }
             return nil
         }
