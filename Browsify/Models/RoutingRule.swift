@@ -67,7 +67,8 @@ struct RoutingRule: Identifiable, Codable {
     // MARK: - Wildcard Matching
 
     /// Cache of compiled NSRegularExpression objects keyed by wildcard pattern.
-    private static var regexCache: [String: NSRegularExpression] = [:]
+    /// NSCache is thread-safe and evicts entries automatically under memory pressure.
+    private static let regexCache = NSCache<NSString, NSRegularExpression>()
 
     /// Matches `text` against `pattern`, where `*` is a wildcard that matches
     /// any sequence of characters (including none). Falls back to substring
@@ -87,7 +88,7 @@ struct RoutingRule: Identifiable, Codable {
         }()
 
         let regex: NSRegularExpression
-        if let cached = regexCache[regexPattern] {
+        if let cached = regexCache.object(forKey: regexPattern as NSString) {
             regex = cached
         } else {
             guard let compiled = try? NSRegularExpression(
@@ -96,7 +97,7 @@ struct RoutingRule: Identifiable, Codable {
             ) else {
                 return text.lowercased().contains(pattern.lowercased())
             }
-            regexCache[regexPattern] = compiled
+            regexCache.setObject(compiled, forKey: regexPattern as NSString)
             regex = compiled
         }
 

@@ -190,19 +190,20 @@ struct RuleRowView: View {
         }
     }
 
-    private static var appIconCache: [String: NSImage] = [:]
+    /// NSCache is thread-safe and evicts entries automatically under memory pressure.
+    private static let appIconCache = NSCache<NSString, NSImage>()
 
     private var targetIcon: NSImage? {
         switch rule.target {
         case .browser(let browserId, _):
             return browserDetector.allBrowsers.first(where: { $0.id == browserId })?.iconImage
         case .desktopApp(let bundleId):
-            if let cached = Self.appIconCache[bundleId] {
+            if let cached = Self.appIconCache.object(forKey: bundleId as NSString) {
                 return cached
             }
             if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
                 let icon = NSWorkspace.shared.icon(forFile: appURL.path)
-                Self.appIconCache[bundleId] = icon
+                Self.appIconCache.setObject(icon, forKey: bundleId as NSString)
                 return icon
             }
             return nil
