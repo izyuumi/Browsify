@@ -105,7 +105,11 @@ struct RulesListView: View {
                 }
 
                 ForEach(ruleEngine.rules) { rule in
-                    RuleRowView(rule: rule, isReorderMode: isReorderMode) {
+                    RuleRowView(
+                        rule: rule,
+                        browserDetector: browserDetector,
+                        isReorderMode: isReorderMode
+                    ) {
                         editingRule = rule
                     } deleteAction: {
                         ruleEngine.deleteRule(rule)
@@ -159,13 +163,47 @@ struct RulesListView: View {
 
 struct RuleRowView: View {
     let rule: RoutingRule
+    @ObservedObject var browserDetector: BrowserDetector
     let isReorderMode: Bool
     let editAction: () -> Void
     let deleteAction: () -> Void
     let toggleAction: () -> Void
 
+    // MARK: - Helpers
+
+    private var targetDescription: String {
+        switch rule.target {
+        case .browser(let browserId, let profileId):
+            if let browser = browserDetector.allBrowsers.first(where: { $0.id == browserId }) {
+                if let profileId = profileId,
+                   let profile = browser.profiles.first(where: { $0.id == profileId }) {
+                    return "\(browser.name) · \(profile.name)"
+                }
+                return browser.name
+            }
+            return "Unknown browser"
+        case .desktopApp(let bundleId):
+            if let app = DesktopApp.knownApps.first(where: { $0.bundleIdentifier == bundleId }) {
+                return app.name
+            }
+            return bundleId
+        }
+    }
+
+    private var targetIcon: NSImage? {
+        switch rule.target {
+        case .browser(let browserId, _):
+            return browserDetector.allBrowsers.first(where: { $0.id == browserId })?.iconImage
+        case .desktopApp(let bundleId):
+            if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+                return NSWorkspace.shared.icon(forFile: appURL.path)
+            }
+            return nil
+        }
+    }
+
     var body: some View {
-        HStack {
+        HStack(spacing: 10) {
             if !isReorderMode {
                 Toggle("", isOn: .constant(rule.isEnabled))
                     .labelsHidden()
@@ -177,14 +215,25 @@ struct RuleRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(rule.pattern)
                     .font(.system(.body, weight: .medium))
-                HStack {
-                    Text(rule.matchType.rawValue)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                Text(rule.matchType.rawValue)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
 
             Spacer()
+
+            // Target display
+            HStack(spacing: 6) {
+                if let icon = targetIcon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 16, height: 16)
+                }
+                Text(targetDescription)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
 
             if !isReorderMode {
                 Button(action: editAction) {

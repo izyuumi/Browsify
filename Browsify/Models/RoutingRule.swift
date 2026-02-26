@@ -51,23 +51,42 @@ struct RoutingRule: Identifiable, Codable {
 
         switch matchType {
         case .domain:
-            return url.host?.contains(pattern) == true
+            guard let host = url.host else { return false }
+            return RoutingRule.wildcardMatch(text: host, pattern: pattern)
 
         case .urlPattern:
             let urlString = url.absoluteString
-            if pattern.contains("*") {
-                // Convert wildcard pattern to regex
-                let regexPattern = pattern
-                    .replacingOccurrences(of: ".", with: "\\.")
-                    .replacingOccurrences(of: "*", with: ".*")
-                return urlString.range(of: regexPattern, options: .regularExpression) != nil
-            } else {
-                return urlString.contains(pattern)
-            }
+            return RoutingRule.wildcardMatch(text: urlString, pattern: pattern)
 
         case .sourceApp:
             guard let sourceApp = sourceApp else { return false }
             return sourceApp.contains(pattern)
         }
+    }
+
+    // MARK: - Wildcard Matching
+
+    /// Matches `text` against `pattern`, where `*` is a wildcard that matches
+    /// any sequence of characters (including none). Falls back to substring
+    /// containment when the pattern contains no wildcards.
+    static func wildcardMatch(text: String, pattern: String) -> Bool {
+        guard pattern.contains("*") else {
+            return text.lowercased().contains(pattern.lowercased())
+        }
+
+        // Build a regex from the wildcard pattern:
+        //   1. Escape regex metacharacters (except *)
+        //   2. Replace * with .*
+        let escaped = NSRegularExpression.escapedPattern(for: pattern)
+            .replacingOccurrences(of: "\\*", with: ".*")
+        guard let regex = try? NSRegularExpression(
+            pattern: "^" + escaped + "$",
+            options: [.caseInsensitive]
+        ) else {
+            return text.lowercased().contains(pattern.lowercased())
+        }
+
+        let range = NSRange(text.startIndex..., in: text)
+        return regex.firstMatch(in: text, range: range) != nil
     }
 }
