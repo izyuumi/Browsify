@@ -157,11 +157,11 @@ struct RuleEditorView: View {
     private var matchTypeHint: String {
         switch matchType {
         case .domain:
-            return "Example: google.com, github.com"
+            return "Match the host name. Supports wildcards, e.g. *.google.com, mail.* or github.com"
         case .urlPattern:
-            return "Example: https://meet.google.com/*, *zoom.us*"
+            return "Match the full URL. Supports wildcards, e.g. https://meet.google.com/*, *zoom.us*"
         case .sourceApp:
-            return "Example: com.apple.mail, com.microsoft.Outlook"
+            return "Match the source application bundle ID, e.g. com.apple.mail, com.microsoft.Outlook"
         }
     }
 

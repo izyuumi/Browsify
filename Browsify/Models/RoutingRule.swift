@@ -51,23 +51,87 @@ struct RoutingRule: Identifiable, Codable {
 
         switch matchType {
         case .domain:
-            return url.host?.contains(pattern) == true
+            guard let host = url.host else { return false }
+            return RoutingRule.wildcardMatch(text: host, pattern: pattern, caseInsensitive: true)
 
         case .urlPattern:
+            // Use the full absoluteString (preserves port, query, fragment).
+            // URL patterns are matched with a leading anchor but no trailing anchor:
+            // this lets "zoom.us/j/*" match "https://zoom.us/j/123?pwd=abc" while still
+            // correctly rejecting unrelated URLs.
             let urlString = url.absoluteString
-            if pattern.contains("*") {
-                // Convert wildcard pattern to regex
-                let regexPattern = pattern
-                    .replacingOccurrences(of: ".", with: "\\.")
-                    .replacingOccurrences(of: "*", with: ".*")
-                return urlString.range(of: regexPattern, options: .regularExpression) != nil
-            } else {
-                return urlString.contains(pattern)
-            }
+            let normalizedPattern = RoutingRule.normalizedURLPattern(pattern)
+            return RoutingRule.wildcardMatch(
+                text: urlString,
+                pattern: normalizedPattern,
+                caseInsensitive: false,
+                trailingAnchor: false
+            )
 
         case .sourceApp:
             guard let sourceApp = sourceApp else { return false }
-            return sourceApp.contains(pattern)
+            return RoutingRule.wildcardMatch(text: sourceApp, pattern: pattern, caseInsensitive: true)
         }
+    }
+
+    // MARK: - Wildcard Matching
+
+    /// Cache of compiled NSRegularExpression objects keyed by wildcard pattern.
+    /// NSCache is thread-safe and evicts entries automatically under memory pressure.
+    private static let regexCache = NSCache<NSString, NSRegularExpression>()
+
+    /// URL patterns without a scheme are treated as host/path fragments and
+    /// should continue matching full URLs by allowing any leading prefix.
+    private static func normalizedURLPattern(_ pattern: String) -> String {
+        guard pattern.contains("*") else { return pattern }
+
+        var normalized = pattern
+
+        // Prepend wildcard if there's no leading wildcard and no explicit scheme,
+        // so patterns like "zoom.us/j/*" still match "https://zoom.us/j/123".
+        if !normalized.hasPrefix("*"),
+           normalized.range(of: #"^[A-Za-z][A-Za-z0-9+\-.]*://"#, options: .regularExpression) == nil {
+            normalized = "*\(normalized)"
+        }
+
+        return normalized
+    }
+
+    /// Matches `text` against `pattern`, where `*` is a wildcard that matches
+    /// any sequence of characters (including none). Falls back to substring
+    /// containment when the pattern contains no wildcards.
+    static func wildcardMatch(text: String, pattern: String, caseInsensitive: Bool, trailingAnchor: Bool = true) -> Bool {
+        guard !pattern.isEmpty else { return false }
+        guard pattern.contains("*") else {
+            let options: String.CompareOptions = caseInsensitive ? [.caseInsensitive] : []
+            return text.range(of: pattern, options: options) != nil
+        }
+
+        // Build a regex from the wildcard pattern:
+        //   1. Escape regex metacharacters (except *)
+        //   2. Replace * with .*
+        let regexPattern = "^"
+            + NSRegularExpression.escapedPattern(for: pattern)
+                .replacingOccurrences(of: "\\*", with: ".*")
+            + (trailingAnchor ? "$" : "")
+        let cacheKey = "\(caseInsensitive ? "i" : "s"):\(trailingAnchor ? "a" : "p"):\(regexPattern)"
+
+        let regex: NSRegularExpression
+        if let cached = regexCache.object(forKey: cacheKey as NSString) {
+            regex = cached
+        } else {
+            guard let compiled = try? NSRegularExpression(
+                pattern: regexPattern,
+                options: caseInsensitive ? [.caseInsensitive] : []
+            ) else {
+                let options: String.CompareOptions = caseInsensitive ? [.caseInsensitive] : []
+                return text.range(of: pattern, options: options) != nil
+            }
+            regexCache.setObject(compiled, forKey: cacheKey as NSString)
+            regex = compiled
+        }
+
+        let range = NSRange(text.startIndex..., in: text)
+        return regex.firstMatch(in: text, range: range) != nil
     }
 }
