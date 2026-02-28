@@ -55,18 +55,17 @@ struct RoutingRule: Identifiable, Codable {
             return RoutingRule.wildcardMatch(text: host, pattern: pattern, caseInsensitive: true)
 
         case .urlPattern:
-            // Match against scheme+host+path only when the pattern has no query/fragment
-            // indicators; this preserves exact path semantics (e.g. "/edit" won't match
-            // "/editor") while still letting "/edit" match "/edit?q=1".
-            let patternHasQueryOrFragment = pattern.contains("?") || pattern.contains("#")
-            let urlString = patternHasQueryOrFragment
-                ? url.absoluteString
-                : (url.scheme.map { $0 + "://" } ?? "") + (url.host ?? "") + url.path
+            // Use the full absoluteString (preserves port, query, fragment).
+            // URL patterns are matched with a leading anchor but no trailing anchor:
+            // this lets "zoom.us/j/*" match "https://zoom.us/j/123?pwd=abc" while still
+            // correctly rejecting unrelated URLs.
+            let urlString = url.absoluteString
             let normalizedPattern = RoutingRule.normalizedURLPattern(pattern)
             return RoutingRule.wildcardMatch(
                 text: urlString,
                 pattern: normalizedPattern,
-                caseInsensitive: false
+                caseInsensitive: false,
+                trailingAnchor: false
             )
 
         case .sourceApp:
@@ -83,8 +82,6 @@ struct RoutingRule: Identifiable, Codable {
 
     /// URL patterns without a scheme are treated as host/path fragments and
     /// should continue matching full URLs by allowing any leading prefix.
-    /// Also ensures trailing content (e.g. query params) doesn't break the match
-    /// by appending a trailing wildcard when the pattern doesn't already end with one.
     private static func normalizedURLPattern(_ pattern: String) -> String {
         guard pattern.contains("*") else { return pattern }
 
@@ -103,7 +100,7 @@ struct RoutingRule: Identifiable, Codable {
     /// Matches `text` against `pattern`, where `*` is a wildcard that matches
     /// any sequence of characters (including none). Falls back to substring
     /// containment when the pattern contains no wildcards.
-    static func wildcardMatch(text: String, pattern: String, caseInsensitive: Bool) -> Bool {
+    static func wildcardMatch(text: String, pattern: String, caseInsensitive: Bool, trailingAnchor: Bool = true) -> Bool {
         guard !pattern.isEmpty else { return false }
         guard pattern.contains("*") else {
             let options: String.CompareOptions = caseInsensitive ? [.caseInsensitive] : []
@@ -116,8 +113,8 @@ struct RoutingRule: Identifiable, Codable {
         let regexPattern = "^"
             + NSRegularExpression.escapedPattern(for: pattern)
                 .replacingOccurrences(of: "\\*", with: ".*")
-            + "$"
-        let cacheKey = "\(caseInsensitive ? "i" : "s"):\(regexPattern)"
+            + (trailingAnchor ? "$" : "")
+        let cacheKey = "\(caseInsensitive ? "i" : "s"):\(trailingAnchor ? "a" : "p"):\(regexPattern)"
 
         let regex: NSRegularExpression
         if let cached = regexCache.object(forKey: cacheKey as NSString) {
