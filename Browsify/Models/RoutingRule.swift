@@ -55,7 +55,13 @@ struct RoutingRule: Identifiable, Codable {
             return RoutingRule.wildcardMatch(text: host, pattern: pattern, caseInsensitive: true)
 
         case .urlPattern:
-            let urlString = url.absoluteString
+            // Match against scheme+host+path only when the pattern has no query/fragment
+            // indicators; this preserves exact path semantics (e.g. "/edit" won't match
+            // "/editor") while still letting "/edit" match "/edit?q=1".
+            let patternHasQueryOrFragment = pattern.contains("?") || pattern.contains("#")
+            let urlString = patternHasQueryOrFragment
+                ? url.absoluteString
+                : (url.scheme.map { $0 + "://" } ?? "") + (url.host ?? "") + url.path
             let normalizedPattern = RoutingRule.normalizedURLPattern(pattern)
             return RoutingRule.wildcardMatch(
                 text: urlString,
@@ -89,13 +95,6 @@ struct RoutingRule: Identifiable, Codable {
         if !normalized.hasPrefix("*"),
            normalized.range(of: #"^[A-Za-z][A-Za-z0-9+\-.]*://"#, options: .regularExpression) == nil {
             normalized = "*\(normalized)"
-        }
-
-        // Append wildcard so patterns without a trailing wildcard still match URLs
-        // that have extra path segments, query parameters, or fragments after the
-        // last literal token (e.g. "zoom.us/j/*/wc" matches ".../wc?pwd=xxx").
-        if !normalized.hasSuffix("*") {
-            normalized = "\(normalized)*"
         }
 
         return normalized
