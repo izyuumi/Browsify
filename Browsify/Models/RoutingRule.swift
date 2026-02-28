@@ -52,11 +52,11 @@ struct RoutingRule: Identifiable, Codable {
         switch matchType {
         case .domain:
             guard let host = url.host else { return false }
-            return RoutingRule.wildcardMatch(text: host, pattern: pattern)
+            return RoutingRule.wildcardMatch(text: host, pattern: pattern, caseInsensitive: true)
 
         case .urlPattern:
             let urlString = url.absoluteString
-            return RoutingRule.wildcardMatch(text: urlString, pattern: pattern)
+            return RoutingRule.wildcardMatch(text: urlString, pattern: pattern, caseInsensitive: false)
 
         case .sourceApp:
             guard let sourceApp = sourceApp else { return false }
@@ -73,31 +73,31 @@ struct RoutingRule: Identifiable, Codable {
     /// Matches `text` against `pattern`, where `*` is a wildcard that matches
     /// any sequence of characters (including none). Falls back to substring
     /// containment when the pattern contains no wildcards.
-    static func wildcardMatch(text: String, pattern: String) -> Bool {
+    static func wildcardMatch(text: String, pattern: String, caseInsensitive: Bool) -> Bool {
         guard pattern.contains("*") else {
-            return text.lowercased().contains(pattern.lowercased())
+            let options: String.CompareOptions = caseInsensitive ? [.caseInsensitive] : []
+            return text.range(of: pattern, options: options) != nil
         }
 
         // Build a regex from the wildcard pattern:
         //   1. Escape regex metacharacters (except *)
         //   2. Replace * with .*
-        let regexPattern: String = {
-            let escaped = NSRegularExpression.escapedPattern(for: pattern)
-                .replacingOccurrences(of: "\\*", with: ".*")
-            return "^" + escaped + "$"
-        }()
+        let regexPattern = NSRegularExpression.escapedPattern(for: pattern)
+            .replacingOccurrences(of: "\\*", with: ".*")
+        let cacheKey = "\(caseInsensitive ? "i" : "s"):\(regexPattern)"
 
         let regex: NSRegularExpression
-        if let cached = regexCache.object(forKey: regexPattern as NSString) {
+        if let cached = regexCache.object(forKey: cacheKey as NSString) {
             regex = cached
         } else {
             guard let compiled = try? NSRegularExpression(
                 pattern: regexPattern,
-                options: [.caseInsensitive]
+                options: caseInsensitive ? [.caseInsensitive] : []
             ) else {
-                return text.lowercased().contains(pattern.lowercased())
+                let options: String.CompareOptions = caseInsensitive ? [.caseInsensitive] : []
+                return text.range(of: pattern, options: options) != nil
             }
-            regexCache.setObject(compiled, forKey: regexPattern as NSString)
+            regexCache.setObject(compiled, forKey: cacheKey as NSString)
             regex = compiled
         }
 
