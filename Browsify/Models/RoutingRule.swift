@@ -77,17 +77,28 @@ struct RoutingRule: Identifiable, Codable {
 
     /// URL patterns without a scheme are treated as host/path fragments and
     /// should continue matching full URLs by allowing any leading prefix.
+    /// Also ensures trailing content (e.g. query params) doesn't break the match
+    /// by appending a trailing wildcard when the pattern doesn't already end with one.
     private static func normalizedURLPattern(_ pattern: String) -> String {
         guard pattern.contains("*") else { return pattern }
-        guard !pattern.hasPrefix("*") else { return pattern }
-        guard pattern.range(
-            of: #"^[A-Za-z][A-Za-z0-9+\-.]*://"#,
-            options: .regularExpression
-        ) == nil else {
-            return pattern
+
+        var normalized = pattern
+
+        // Prepend wildcard if there's no leading wildcard and no explicit scheme,
+        // so patterns like "zoom.us/j/*" still match "https://zoom.us/j/123".
+        if !normalized.hasPrefix("*"),
+           normalized.range(of: #"^[A-Za-z][A-Za-z0-9+\-.]*://"#, options: .regularExpression) == nil {
+            normalized = "*\(normalized)"
         }
 
-        return "*\(pattern)"
+        // Append wildcard so patterns without a trailing wildcard still match URLs
+        // that have extra path segments, query parameters, or fragments after the
+        // last literal token (e.g. "zoom.us/j/*/wc" matches ".../wc?pwd=xxx").
+        if !normalized.hasSuffix("*") {
+            normalized = "\(normalized)*"
+        }
+
+        return normalized
     }
 
     /// Matches `text` against `pattern`, where `*` is a wildcard that matches
