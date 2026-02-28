@@ -82,8 +82,10 @@ struct RoutingRule: Identifiable, Codable {
         // Build a regex from the wildcard pattern:
         //   1. Escape regex metacharacters (except *)
         //   2. Replace * with .*
-        let regexPattern = NSRegularExpression.escapedPattern(for: pattern)
-            .replacingOccurrences(of: "\\*", with: ".*")
+        let regexPattern = "^"
+            + NSRegularExpression.escapedPattern(for: pattern)
+                .replacingOccurrences(of: "\\*", with: ".*")
+            + "$"
         let cacheKey = "\(caseInsensitive ? "i" : "s"):\(regexPattern)"
 
         let regex: NSRegularExpression
