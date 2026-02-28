@@ -56,7 +56,12 @@ struct RoutingRule: Identifiable, Codable {
 
         case .urlPattern:
             let urlString = url.absoluteString
-            return RoutingRule.wildcardMatch(text: urlString, pattern: pattern, caseInsensitive: false)
+            let normalizedPattern = RoutingRule.normalizedURLPattern(pattern)
+            return RoutingRule.wildcardMatch(
+                text: urlString,
+                pattern: normalizedPattern,
+                caseInsensitive: false
+            )
 
         case .sourceApp:
             guard let sourceApp = sourceApp else { return false }
@@ -69,6 +74,21 @@ struct RoutingRule: Identifiable, Codable {
     /// Cache of compiled NSRegularExpression objects keyed by wildcard pattern.
     /// NSCache is thread-safe and evicts entries automatically under memory pressure.
     private static let regexCache = NSCache<NSString, NSRegularExpression>()
+
+    /// URL patterns without a scheme are treated as host/path fragments and
+    /// should continue matching full URLs by allowing any leading prefix.
+    private static func normalizedURLPattern(_ pattern: String) -> String {
+        guard pattern.contains("*") else { return pattern }
+        guard !pattern.hasPrefix("*") else { return pattern }
+        guard pattern.range(
+            of: #"^[A-Za-z][A-Za-z0-9+\-.]*://"#,
+            options: .regularExpression
+        ) == nil else {
+            return pattern
+        }
+
+        return "*\(pattern)"
+    }
 
     /// Matches `text` against `pattern`, where `*` is a wildcard that matches
     /// any sequence of characters (including none). Falls back to substring
@@ -85,7 +105,6 @@ struct RoutingRule: Identifiable, Codable {
         //   2. Replace * with .*
         let regexPattern = "^"
             + NSRegularExpression.escapedPattern(for: pattern)
-                .replacingOccurrences(of: "\\*\\.", with: "(?:.*\\.)?")
                 .replacingOccurrences(of: "\\*", with: ".*")
             + "$"
         let cacheKey = "\(caseInsensitive ? "i" : "s"):\(regexPattern)"
