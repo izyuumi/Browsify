@@ -60,7 +60,7 @@ struct RoutingRule: Identifiable, Codable {
 
         case .sourceApp:
             guard let sourceApp = sourceApp else { return false }
-            return sourceApp.contains(pattern)
+            return RoutingRule.wildcardMatch(text: sourceApp, pattern: pattern, caseInsensitive: true)
         }
     }
 
@@ -74,6 +74,7 @@ struct RoutingRule: Identifiable, Codable {
     /// any sequence of characters (including none). Falls back to substring
     /// containment when the pattern contains no wildcards.
     static func wildcardMatch(text: String, pattern: String, caseInsensitive: Bool) -> Bool {
+        guard !pattern.isEmpty else { return false }
         guard pattern.contains("*") else {
             let options: String.CompareOptions = caseInsensitive ? [.caseInsensitive] : []
             return text.range(of: pattern, options: options) != nil
@@ -84,6 +85,7 @@ struct RoutingRule: Identifiable, Codable {
         //   2. Replace * with .*
         let regexPattern = "^"
             + NSRegularExpression.escapedPattern(for: pattern)
+                .replacingOccurrences(of: "\\*\\.", with: "(?:.*\\.)?")
                 .replacingOccurrences(of: "\\*", with: ".*")
             + "$"
         let cacheKey = "\(caseInsensitive ? "i" : "s"):\(regexPattern)"
