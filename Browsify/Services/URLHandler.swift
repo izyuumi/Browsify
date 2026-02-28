@@ -58,19 +58,21 @@ class URLHandler: NSObject, ObservableObject {
             return
         }
 
-        // Check domain-specific browser memory (more specific than global default)
-        if let remembered = rememberedBrowser(for: cleanedURL) {
-            NSLog("[URLHandler] Using remembered browser '\(remembered.name)' for domain of URL: \(cleanedURL.absoluteString)")
-            remembered.openURL(cleanedURL, profile: nil)
-            return
-        }
+        // Only use remembered domains when the app is not configured to always prompt.
+        if case let .browser(browserId) = defaultBrowserPreference {
+            // Check domain-specific browser memory (more specific than global default)
+            if let remembered = rememberedBrowser(for: cleanedURL) {
+                NSLog("[URLHandler] Using remembered browser '\(remembered.name)' for domain of URL: \(cleanedURL.absoluteString)")
+                remembered.openURL(cleanedURL, profile: nil)
+                return
+            }
 
-        // Apply saved default browser preference if available
-        if case let .browser(browserId) = defaultBrowserPreference,
-           let browser = browserDetector.browsers.first(where: { $0.id == browserId }) {
-            NSLog("[URLHandler] Using saved default browser '\(browser.name)' for URL: \(cleanedURL.absoluteString)")
-            browser.openURL(cleanedURL, profile: nil)
-            return
+            // Apply saved default browser preference if available
+            if let browser = browserDetector.browsers.first(where: { $0.id == browserId }) {
+                NSLog("[URLHandler] Using saved default browser '\(browser.name)' for URL: \(cleanedURL.absoluteString)")
+                browser.openURL(cleanedURL, profile: nil)
+                return
+            }
         }
 
         // No rule matched - show browser picker
