@@ -31,13 +31,29 @@ class RuleEngine: ObservableObject {
         saveRules()
     }
 
+    func removeProfileReferences(_ profileId: UUID) {
+        var didChange = false
+
+        for index in rules.indices {
+            let updatedProfileIds = rules[index].profileIds.filter { $0 != profileId }
+            if updatedProfileIds.count != rules[index].profileIds.count {
+                rules[index].profileIds = updatedProfileIds
+                didChange = true
+            }
+        }
+
+        if didChange {
+            saveRules()
+        }
+    }
+
     func findMatchingRule(for url: URL, sourceApp: String?) -> RoutingRule? {
         let activeProfileId = ProfileManager.shared.activeProfileId
         // Rules are evaluated in the current order
         for rule in rules {
             // Rule applies if: global (no profiles) OR active profile matches
             let profileMatch = rule.profileIds.isEmpty ||
-                (activeProfileId != nil && rule.profileIds.contains(activeProfileId!))
+                (activeProfileId.map { rule.profileIds.contains($0) } ?? false)
             if profileMatch && rule.matches(url: url, sourceApp: sourceApp) {
                 return rule
             }

@@ -35,7 +35,10 @@ struct SettingsView: View {
                 Label("Rules", systemImage: "list.bullet")
             }
 
-            ProfilesListView(profileManager: profileManager)
+            ProfilesListView(
+                profileManager: profileManager,
+                ruleEngine: ruleEngine
+            )
                 .tabItem {
                     Label("Profiles", systemImage: "person.2")
                 }
@@ -635,6 +638,7 @@ struct BrowserEditorView: View {
 
 struct ProfilesListView: View {
     @ObservedObject var profileManager: ProfileManager
+    @ObservedObject var ruleEngine: RuleEngine
     @State private var showingAddProfile = false
     @State private var newProfileName = ""
 
@@ -667,7 +671,10 @@ struct ProfilesListView: View {
                             }
                             .buttonStyle(.bordered)
 
-                            Button(action: { profileManager.deleteProfile(profile) }) {
+                            Button(action: {
+                                ruleEngine.removeProfileReferences(profile.id)
+                                profileManager.deleteProfile(profile)
+                            }) {
                                 Image(systemName: "trash")
                                     .foregroundColor(.red)
                             }

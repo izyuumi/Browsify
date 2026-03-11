@@ -62,7 +62,11 @@ class ProfileManager: ObservableObject {
         }
         if let idString = UserDefaults.standard.string(forKey: "activeProfileId"),
            let id = UUID(uuidString: idString) {
-            activeProfileId = id
+            if profiles.contains(where: { $0.id == id }) {
+                activeProfileId = id
+            } else {
+                UserDefaults.standard.removeObject(forKey: "activeProfileId")
+            }
         }
     }
 }
