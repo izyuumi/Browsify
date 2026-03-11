@@ -49,13 +49,15 @@ class RuleEngine: ObservableObject {
 
     func findMatchingRule(for url: URL, sourceApp: String?) -> RoutingRule? {
         let activeProfileId = ProfileManager.shared.activeProfileId
+        let availableProfileIds = Set(ProfileManager.shared.profiles.map(\.id))
         // Rules are evaluated in the current order
         for rule in rules {
+            let effectiveProfileIds = rule.profileIds.filter { availableProfileIds.contains($0) }
             // No active profile means all rules are eligible, matching the UI's
             // "None (All Rules Active)" behavior.
             let profileMatch = activeProfileId == nil ||
-                rule.profileIds.isEmpty ||
-                activeProfileId.map(rule.profileIds.contains) == true
+                effectiveProfileIds.isEmpty ||
+                activeProfileId.map(effectiveProfileIds.contains) == true
             if profileMatch && rule.matches(url: url, sourceApp: sourceApp) {
                 return rule
             }

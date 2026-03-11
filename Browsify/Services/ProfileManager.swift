@@ -56,9 +56,13 @@ class ProfileManager: ObservableObject {
     }
 
     private func loadProfiles() {
-        if let data = UserDefaults.standard.data(forKey: "profiles"),
-           let decoded = try? JSONDecoder().decode([Profile].self, from: data) {
-            profiles = decoded
+        if let data = UserDefaults.standard.data(forKey: "profiles") {
+            if let decoded = try? JSONDecoder().decode([Profile].self, from: data) {
+                profiles = decoded
+            } else {
+                UserDefaults.standard.removeObject(forKey: "profiles")
+                UserDefaults.standard.removeObject(forKey: "activeProfileId")
+            }
         }
         if let idString = UserDefaults.standard.string(forKey: "activeProfileId"),
            let id = UUID(uuidString: idString) {
@@ -67,6 +71,8 @@ class ProfileManager: ObservableObject {
             } else {
                 UserDefaults.standard.removeObject(forKey: "activeProfileId")
             }
+        } else {
+            UserDefaults.standard.removeObject(forKey: "activeProfileId")
         }
     }
 }

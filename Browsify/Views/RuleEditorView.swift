@@ -194,6 +194,7 @@ struct RuleEditorView: View {
     }
 
     private func saveRule() {
+        let availableProfileIds = Set(profileManager.profiles.map(\.id))
         let target: RuleTarget
         if targetType == .browser, let browser = selectedBrowser {
             target = .browser(browserId: browser.id, profileId: selectedProfile?.id)
@@ -209,7 +210,7 @@ struct RuleEditorView: View {
             matchType: matchType,
             pattern: pattern,
             target: target,
-            profileIds: Array(selectedProfileIds)
+            profileIds: Array(selectedProfileIds.intersection(availableProfileIds))
         )
 
         if rule != nil {
