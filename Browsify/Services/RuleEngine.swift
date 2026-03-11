@@ -32,9 +32,13 @@ class RuleEngine: ObservableObject {
     }
 
     func findMatchingRule(for url: URL, sourceApp: String?) -> RoutingRule? {
+        let activeProfileId = ProfileManager.shared.activeProfileId
         // Rules are evaluated in the current order
         for rule in rules {
-            if rule.matches(url: url, sourceApp: sourceApp) {
+            // Rule applies if: global (no profiles) OR active profile matches
+            let profileMatch = rule.profileIds.isEmpty ||
+                (activeProfileId != nil && rule.profileIds.contains(activeProfileId!))
+            if profileMatch && rule.matches(url: url, sourceApp: sourceApp) {
                 return rule
             }
         }
