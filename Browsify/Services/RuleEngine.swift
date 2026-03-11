@@ -51,9 +51,11 @@ class RuleEngine: ObservableObject {
         let activeProfileId = ProfileManager.shared.activeProfileId
         // Rules are evaluated in the current order
         for rule in rules {
-            // Rule applies if: global (no profiles) OR active profile matches
-            let profileMatch = rule.profileIds.isEmpty ||
-                (activeProfileId.map { rule.profileIds.contains($0) } ?? false)
+            // No active profile means all rules are eligible, matching the UI's
+            // "None (All Rules Active)" behavior.
+            let profileMatch = activeProfileId == nil ||
+                rule.profileIds.isEmpty ||
+                activeProfileId.map(rule.profileIds.contains) == true
             if profileMatch && rule.matches(url: url, sourceApp: sourceApp) {
                 return rule
             }
