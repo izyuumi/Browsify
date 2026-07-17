@@ -15,11 +15,13 @@ class BrowserDetector: ObservableObject {
     private let hiddenBrowsersKey = "hiddenBrowsers"
     private let browserOrderKey = "browserOrder"
     private let browserUUIDMapKey = "browserUUIDMap" // Maps bundleId -> UUID
+    private let accessManager: AccessManager
 
     // Cache detected browsers to avoid redundant filesystem scans
     private var cachedDetectedBrowsers: [Browser] = []
 
-    init() {
+    init(accessManager: AccessManager = .shared) {
+        self.accessManager = accessManager
         // Auto-detect browsers on initialization
         detectBrowsers()
     }
@@ -193,6 +195,22 @@ class BrowserDetector: ObservableObject {
         updateBrowserVisibility()
     }
 
+    /// Installed browsers whose profile metadata can be read after a user grant.
+    var profileCapableBrowsers: [Browser] {
+        allBrowsers.filter { accessManager.supportsProfileDetection(for: $0.bundleIdentifier) }
+    }
+
+    func hasProfileAccess(for browser: Browser) -> Bool {
+        accessManager.hasProfileFolderAccess(for: browser.bundleIdentifier)
+    }
+
+    func requestProfileAccess(for browser: Browser) {
+        accessManager.requestProfileFolderAccess(for: browser.bundleIdentifier) { [weak self] granted in
+            guard granted else { return }
+            self?.detectBrowsers()
+        }
+    }
+
     /// Updates browser visibility filtering without performing filesystem scans.
     /// This method uses cached detection results and only filters based on hidden status.
     /// Use this instead of detectBrowsers() when only hide/unhide operations occur.
@@ -236,8 +254,7 @@ class BrowserDetector: ObservableObject {
         var profiles: [BrowserProfile] = []
 
         // Chrome-based browsers
-        if bundleId.contains("chrome") || bundleId == "com.brave.Browser" ||
-           bundleId == "com.microsoft.edgemac" || bundleId == "com.vivaldi.Vivaldi" {
+        if ["com.google.Chrome", "com.brave.Browser", "com.microsoft.edgemac", "com.vivaldi.Vivaldi"].contains(bundleId) {
             profiles = detectChromeProfiles(bundleId: bundleId)
         }
 
@@ -256,42 +273,25 @@ class BrowserDetector: ObservableObject {
 
     private func detectChromeProfiles(bundleId: String) -> [BrowserProfile] {
         var profiles: [BrowserProfile] = []
+        accessManager.withProfileFolderAccess(for: bundleId) { configDirectory in
+            // Local State contains the Chrome-family profile info cache.
+            let localStateURL = configDirectory.appendingPathComponent("Local State")
+            guard let data = try? Data(contentsOf: localStateURL),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let profileInfo = json["profile"] as? [String: Any],
+                  let infoCache = profileInfo["info_cache"] as? [String: Any] else {
+                return
+            }
 
-        // Determine the Chrome config directory based on bundle ID
-        var configDir = ""
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-
-        switch bundleId {
-        case "com.google.Chrome":
-            configDir = "\(homeDir)/Library/Application Support/Google/Chrome"
-        case "com.brave.Browser":
-            configDir = "\(homeDir)/Library/Application Support/BraveSoftware/Brave-Browser"
-        case "com.microsoft.edgemac":
-            configDir = "\(homeDir)/Library/Application Support/Microsoft Edge"
-        case "com.vivaldi.Vivaldi":
-            configDir = "\(homeDir)/Library/Application Support/Vivaldi"
-        default:
-            return profiles
-        }
-
-        // Check for Local State file which contains profile info
-        let localStatePath = "\(configDir)/Local State"
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: localStatePath)),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let profileInfo = json["profile"] as? [String: Any],
-              let infoCache = profileInfo["info_cache"] as? [String: Any] else {
-            return profiles
-        }
-
-        for (profilePath, profileData) in infoCache {
-            if let profileDict = profileData as? [String: Any],
-               let profileName = profileDict["name"] as? String {
-                let profile = BrowserProfile(
-                    name: profileName,
-                    profilePath: profilePath,
-                    browserBundleId: bundleId
-                )
-                profiles.append(profile)
+            for (profilePath, profileData) in infoCache {
+                if let profileDict = profileData as? [String: Any],
+                   let profileName = profileDict["name"] as? String {
+                    profiles.append(BrowserProfile(
+                        name: profileName,
+                        profilePath: profilePath,
+                        browserBundleId: bundleId
+                    ))
+                }
             }
         }
 
@@ -300,11 +300,11 @@ class BrowserDetector: ObservableObject {
 
     private func detectFirefoxProfiles(bundleId: String) -> [BrowserProfile] {
         var profiles: [BrowserProfile] = []
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-        let profilesPath = "\(homeDir)/Library/Application Support/Firefox/profiles.ini"
-
-        guard let profilesData = try? String(contentsOfFile: profilesPath, encoding: .utf8),
-              !profilesData.isEmpty else {
+        guard let optionalProfilesData = accessManager.withProfileFolderAccess(for: bundleId, perform: {
+            try? String(contentsOf: $0.appendingPathComponent("profiles.ini"), encoding: .utf8)
+        }),
+        let profilesData = optionalProfilesData,
+        !profilesData.isEmpty else {
             return profiles
         }
 

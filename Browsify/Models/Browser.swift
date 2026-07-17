@@ -5,9 +5,13 @@
 
 import Foundation
 import AppKit
-import ApplicationServices
+import os
 
 struct Browser: Identifiable, Codable, Hashable {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.yumiizumi.Browsify",
+        category: "BrowserLaunch"
+    )
     let id: UUID
     let name: String
     let bundleIdentifier: String
@@ -32,50 +36,37 @@ struct Browser: Identifiable, Codable, Hashable {
     }
 
     func openURL(_ url: URL, profile: BrowserProfile? = nil) {
-        // When no explicit profile is requested, try sending the URL to an existing instance first
-        if profile == nil, openInRunningInstance(url) {
-            return
+        let arguments = profile?.profilePath.isEmpty == false ? profile?.launchArguments(for: url) ?? [] : []
+        let openBrowser: (URL) -> Void = { applicationURL in
+            open(url, withApplicationAt: applicationURL, arguments: arguments, retryWithoutArguments: !arguments.isEmpty)
         }
 
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = false
-
-        if let profile = profile, !profile.profilePath.isEmpty {
-            // Launching with a specific profile still requires command-line arguments
-            configuration.arguments = profile.launchArguments(for: url)
+        // Known browsers are resolved through LaunchServices. Custom browsers retain the
+        // security scope received when the user selected their application bundle.
+        if AccessManager.shared.withBrowserApplicationAccess(at: path, perform: openBrowser) == nil {
+            openBrowser(URL(fileURLWithPath: path))
         }
-
-        NSWorkspace.shared.open(
-            [url],
-            withApplicationAt: URL(fileURLWithPath: path),
-            configuration: configuration,
-            completionHandler: nil
-        )
     }
 
-    /// Sends a kAEGetURL event directly to a running instance of the browser if available.
-    /// Returns true when delivery succeeds so we can avoid launching a new window.
-    private func openInRunningInstance(_ url: URL) -> Bool {
-        guard !NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).isEmpty else {
-            return false
-        }
+    private func open(
+        _ url: URL,
+        withApplicationAt applicationURL: URL,
+        arguments: [String],
+        retryWithoutArguments: Bool
+    ) {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = false
+        configuration.arguments = arguments
 
-        let targetDescriptor = NSAppleEventDescriptor(bundleIdentifier: bundleIdentifier)
-        let appleEvent = NSAppleEventDescriptor.appleEvent(
-            withEventClass: AEEventClass(kInternetEventClass),
-            eventID: AEEventID(kAEGetURL),
-            targetDescriptor: targetDescriptor,
-            returnID: AEReturnID(kAutoGenerateReturnID),
-            transactionID: AETransactionID(kAnyTransactionID)
-        )
+        NSWorkspace.shared.open([url], withApplicationAt: applicationURL, configuration: configuration) { _, error in
+            guard let error else { return }
 
-        appleEvent.setParam(NSAppleEventDescriptor(string: url.absoluteString), forKeyword: keyDirectObject)
-
-        do {
-            _ = try appleEvent.sendEvent(options: [.neverInteract, .dontRecord], timeout: 1.0)
-            return true
-        } catch {
-            return false
+            if retryWithoutArguments {
+                Self.logger.error("Profile launch failed; retrying without arguments: \(error.localizedDescription, privacy: .public)")
+                self.open(url, withApplicationAt: applicationURL, arguments: [], retryWithoutArguments: false)
+            } else {
+                Self.logger.error("Unable to open URL in browser: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 }
@@ -94,15 +85,17 @@ struct BrowserProfile: Identifiable, Codable, Hashable {
     }
 
     func launchArguments(for url: URL) -> [String] {
+        let normalizedBundleIdentifier = browserBundleId.lowercased()
+
         // Chrome/Chromium-based browsers
-        if browserBundleId.contains("chrome") || browserBundleId.contains("chromium") ||
-           browserBundleId.contains("brave") || browserBundleId.contains("edge") ||
-           browserBundleId.contains("vivaldi") || browserBundleId.contains("arc") {
+        if normalizedBundleIdentifier.contains("chrome") || normalizedBundleIdentifier.contains("chromium") ||
+           normalizedBundleIdentifier.contains("brave") || normalizedBundleIdentifier.contains("edge") ||
+           normalizedBundleIdentifier.contains("vivaldi") || normalizedBundleIdentifier.contains("arc") {
             return ["--profile-directory=\(profilePath)", url.absoluteString]
         }
 
         // Firefox
-        if browserBundleId.contains("firefox") {
+        if normalizedBundleIdentifier.contains("firefox") {
             return ["-P", name, url.absoluteString]
         }
 

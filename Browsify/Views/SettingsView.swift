@@ -346,15 +346,28 @@ struct BrowsersListView: View {
     var body: some View {
         VStack {
             List {
-                ForEach(orderedBrowsers) { browser in
-                    BrowserRowView(
-                        browser: browser,
-                        browserDetector: browserDetector
-                    ) {
-                        editingBrowser = browser
+                Section("Browser Profiles") {
+                    if browserDetector.profileCapableBrowsers.isEmpty {
+                        Text("Install a supported browser to enable profile detection.")
+                            .foregroundColor(.secondary)
+                    } else {
+                        ForEach(browserDetector.profileCapableBrowsers) { browser in
+                            ProfileAccessRowView(browser: browser, browserDetector: browserDetector)
+                        }
                     }
                 }
-                .onMove(perform: moveBrowsers)
+
+                Section("Browsers") {
+                    ForEach(orderedBrowsers) { browser in
+                        BrowserRowView(
+                            browser: browser,
+                            browserDetector: browserDetector
+                        ) {
+                            editingBrowser = browser
+                        }
+                    }
+                    .onMove(perform: moveBrowsers)
+                }
             }
 
             Divider()
@@ -396,6 +409,27 @@ struct BrowsersListView: View {
     private func moveBrowsers(from source: IndexSet, to destination: Int) {
         orderedBrowsers.move(fromOffsets: source, toOffset: destination)
         browserDetector.saveBrowserDisplayOrder(orderedBrowsers)
+    }
+}
+
+private struct ProfileAccessRowView: View {
+    let browser: Browser
+    @ObservedObject var browserDetector: BrowserDetector
+
+    var body: some View {
+        HStack {
+            Text(browser.name)
+            Spacer()
+
+            if browserDetector.hasProfileAccess(for: browser) {
+                Label("Access granted", systemImage: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+            } else {
+                Button("Grant Access…") {
+                    browserDetector.requestProfileAccess(for: browser)
+                }
+            }
+        }
     }
 }
 
@@ -560,6 +594,7 @@ struct BrowserEditorView: View {
 
         if panel.runModal() == .OK, let url = panel.url {
             path = url.path
+            AccessManager.shared.storeBrowserApplicationBookmark(for: url)
 
             // Try to get bundle identifier from the app
             if let bundle = Bundle(url: url) {

@@ -36,6 +36,11 @@ Packages/
 Package.pins
 Package.resolved
 *.xcodeproj
+!Browsify.xcodeproj/
+!Browsify.xcodeproj/project.pbxproj
+!Browsify.xcodeproj/xcshareddata/
+!Browsify.xcodeproj/xcshareddata/xcschemes/
+!Browsify.xcodeproj/xcshareddata/xcschemes/Browsify.xcscheme
 
 # CocoaPods
 Pods/
