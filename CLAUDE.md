@@ -19,7 +19,7 @@ xcodebuild -project Browsify.xcodeproj -scheme Browsify -configuration Release b
 xcodebuild -project Browsify.xcodeproj -scheme Browsify clean
 ```
 
-**Note:** The project requires Xcode 26+ and targets macOS 13.0+.
+**Note:** The project requires Xcode 26+ and targets macOS 14.0+.
 
 ## Architecture Overview
 
