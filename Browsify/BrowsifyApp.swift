@@ -27,10 +27,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var browserPickerPanel: NSPanel?
     var settingsWindow: NSWindow?
+    var welcomeWindow: NSWindow?
     var cancellables = Set<AnyCancellable>()
     var isPickerOpen = false
     var policyEnforcementTimer: Timer?
     var settingsWindowObserver: NSObjectProtocol?
+    var welcomeWindowObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide from Dock (menu bar only)
@@ -97,6 +99,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Listen for URL events
         setupURLHandling()
+
+        if !UserDefaults.standard.bool(forKey: "hasCompletedWelcome") {
+            DispatchQueue.main.async { [weak self] in
+                self?.showWelcome()
+            }
+        }
     }
 
     private func setupURLHandling() {
@@ -314,6 +322,59 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    @objc func showWelcome() {
+        if let existingWindow = welcomeWindow {
+            NSApp.setActivationPolicy(.regular)
+            existingWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 520),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Welcome to Browsify"
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.contentViewController = NSHostingController(
+            rootView: WelcomeView(
+                browserDetector: URLHandler.shared.getBrowserDetector()
+            ) { [weak window] in
+                window?.close()
+            }
+        )
+
+        welcomeWindow = window
+
+        if let observer = welcomeWindowObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+
+        welcomeWindowObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            UserDefaults.standard.set(true, forKey: "hasCompletedWelcome")
+            NSApp.setActivationPolicy(.accessory)
+
+            if let observer = self?.welcomeWindowObserver {
+                NotificationCenter.default.removeObserver(observer)
+                self?.welcomeWindowObserver = nil
+            }
+
+            self?.welcomeWindow = nil
+        }
+
+        // Temporarily change to regular app to present the welcome window.
+        NSApp.setActivationPolicy(.regular)
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     @objc func testPicker() {
         let testURL = URL(string: "https://www.example.com")!
         URLHandler.shared.handleURL(testURL, sourceApp: nil)
@@ -406,6 +467,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let settingsItem = NSMenuItem(title: "Settings...", action: #selector(self.showSettings), keyEquivalent: ",")
             settingsItem.target = self
             menu.addItem(settingsItem)
+
+            let welcomeItem = NSMenuItem(title: "Welcome to Browsify…", action: #selector(self.showWelcome), keyEquivalent: "")
+            welcomeItem.target = self
+            menu.addItem(welcomeItem)
 
             menu.addItem(NSMenuItem.separator())
 

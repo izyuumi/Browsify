@@ -9,8 +9,10 @@ import SwiftUI
 
 class RuleEngine: ObservableObject {
     @Published var rules: [RoutingRule] = []
+    private let defaults: UserDefaults
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         loadRules()
     }
 
@@ -68,12 +70,12 @@ class RuleEngine: ObservableObject {
 
     private func saveRules() {
         if let encoded = try? JSONEncoder().encode(rules) {
-            UserDefaults.standard.set(encoded, forKey: "routingRules")
+            defaults.set(encoded, forKey: "routingRules")
         }
     }
 
     private func loadRules() {
-        if let data = UserDefaults.standard.data(forKey: "routingRules"),
+        if let data = defaults.data(forKey: "routingRules"),
            let decoded = try? JSONDecoder().decode([RoutingRule].self, from: data) {
             rules = decoded
         } else {

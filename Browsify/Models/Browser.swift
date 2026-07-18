@@ -5,9 +5,13 @@
 
 import Foundation
 import AppKit
-import ApplicationServices
+import os
 
 struct Browser: Identifiable, Codable, Hashable {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.yumiizumi.Browsify",
+        category: "BrowserLaunch"
+    )
     let id: UUID
     let name: String
     let bundleIdentifier: String
@@ -32,50 +36,83 @@ struct Browser: Identifiable, Codable, Hashable {
     }
 
     func openURL(_ url: URL, profile: BrowserProfile? = nil) {
-        // When no explicit profile is requested, try sending the URL to an existing instance first
-        if profile == nil, openInRunningInstance(url) {
-            return
+        let arguments = profile?.profilePath.isEmpty == false ? profile?.launchArguments(for: url) ?? [] : []
+        let helperScriptURL: URL? = MainActor.assumeIsolated {
+            let helperScriptManager = HelperScriptManager.shared
+            return helperScriptManager.isInstalled ? helperScriptManager.scriptURL : nil
+        }
+        let openBrowser: (URL) -> Void = { applicationURL in
+            open(
+                url,
+                withApplicationAt: applicationURL,
+                arguments: arguments,
+                retryWithoutArguments: !arguments.isEmpty,
+                helperScriptURL: helperScriptURL
+            )
+        }
+
+        // Known browsers are resolved through LaunchServices. Custom browsers retain the
+        // security scope received when the user selected their application bundle.
+        if AccessManager.shared.withBrowserApplicationAccess(at: path, perform: openBrowser) == nil {
+            openBrowser(URL(fileURLWithPath: path))
+        }
+    }
+
+    private func open(
+        _ url: URL,
+        withApplicationAt applicationURL: URL,
+        arguments: [String],
+        retryWithoutArguments: Bool,
+        helperScriptURL: URL?
+    ) {
+        if !arguments.isEmpty, let helperScriptURL {
+            do {
+                let task = try NSUserUnixTask(url: helperScriptURL)
+                try task.execute(withArguments: ["-na", applicationURL.path, "--args"] + arguments) { error in
+                    guard let error else { return }
+
+                    Self.logger.error("Helper profile launch failed; opening in default profile: \(error.localizedDescription, privacy: .public)")
+                    self.open(
+                        url,
+                        withApplicationAt: applicationURL,
+                        arguments: [],
+                        retryWithoutArguments: false,
+                        helperScriptURL: nil
+                    )
+                }
+                return
+            } catch {
+                Self.logger.error("Unable to start helper profile launch; opening in default profile: \(error.localizedDescription, privacy: .public)")
+                open(
+                    url,
+                    withApplicationAt: applicationURL,
+                    arguments: [],
+                    retryWithoutArguments: false,
+                    helperScriptURL: nil
+                )
+                return
+            }
         }
 
         let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = false
+        configuration.createsNewApplicationInstance = !arguments.isEmpty
+        configuration.arguments = arguments
 
-        if let profile = profile, !profile.profilePath.isEmpty {
-            // Launching with a specific profile still requires command-line arguments
-            configuration.arguments = profile.launchArguments(for: url)
-        }
+        NSWorkspace.shared.open([url], withApplicationAt: applicationURL, configuration: configuration) { _, error in
+            guard let error else { return }
 
-        NSWorkspace.shared.open(
-            [url],
-            withApplicationAt: URL(fileURLWithPath: path),
-            configuration: configuration,
-            completionHandler: nil
-        )
-    }
-
-    /// Sends a kAEGetURL event directly to a running instance of the browser if available.
-    /// Returns true when delivery succeeds so we can avoid launching a new window.
-    private func openInRunningInstance(_ url: URL) -> Bool {
-        guard !NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).isEmpty else {
-            return false
-        }
-
-        let targetDescriptor = NSAppleEventDescriptor(bundleIdentifier: bundleIdentifier)
-        let appleEvent = NSAppleEventDescriptor.appleEvent(
-            withEventClass: AEEventClass(kInternetEventClass),
-            eventID: AEEventID(kAEGetURL),
-            targetDescriptor: targetDescriptor,
-            returnID: AEReturnID(kAutoGenerateReturnID),
-            transactionID: AETransactionID(kAnyTransactionID)
-        )
-
-        appleEvent.setParam(NSAppleEventDescriptor(string: url.absoluteString), forKeyword: keyDirectObject)
-
-        do {
-            _ = try appleEvent.sendEvent(options: [.neverInteract, .dontRecord], timeout: 1.0)
-            return true
-        } catch {
-            return false
+            if retryWithoutArguments {
+                Self.logger.error("Profile launch failed; retrying without arguments: \(error.localizedDescription, privacy: .public)")
+                self.open(
+                    url,
+                    withApplicationAt: applicationURL,
+                    arguments: [],
+                    retryWithoutArguments: false,
+                    helperScriptURL: nil
+                )
+            } else {
+                Self.logger.error("Unable to open URL in browser: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 }
@@ -93,16 +130,32 @@ struct BrowserProfile: Identifiable, Codable, Hashable {
         self.browserBundleId = browserBundleId
     }
 
+    private static let chromiumFamilyBundleIdentifiers: Set<String> = [
+        "com.google.Chrome",
+        "com.google.Chrome.beta",
+        "com.google.Chrome.canary",
+        "org.chromium.Chromium",
+        "com.brave.Browser",
+        "com.microsoft.edgemac",
+        "com.vivaldi.Vivaldi",
+    ]
+
+    static func isChromiumFamilyBundleIdentifier(_ bundleIdentifier: String) -> Bool {
+        chromiumFamilyBundleIdentifiers.contains(bundleIdentifier)
+    }
+
+    static func usesFirefoxProfile(_ bundleIdentifier: String) -> Bool {
+        bundleIdentifier.hasPrefix("org.mozilla.firefox")
+    }
+
     func launchArguments(for url: URL) -> [String] {
         // Chrome/Chromium-based browsers
-        if browserBundleId.contains("chrome") || browserBundleId.contains("chromium") ||
-           browserBundleId.contains("brave") || browserBundleId.contains("edge") ||
-           browserBundleId.contains("vivaldi") || browserBundleId.contains("arc") {
+        if Self.isChromiumFamilyBundleIdentifier(browserBundleId) {
             return ["--profile-directory=\(profilePath)", url.absoluteString]
         }
 
         // Firefox
-        if browserBundleId.contains("firefox") {
+        if Self.usesFirefoxProfile(browserBundleId) {
             return ["-P", name, url.absoluteString]
         }
 
