@@ -33,10 +33,34 @@ class RuleEngine: ObservableObject {
         saveRules()
     }
 
+    func removeProfileReferences(_ profileId: UUID) {
+        var didChange = false
+
+        for index in rules.indices {
+            let updatedProfileIds = rules[index].profileIds.filter { $0 != profileId }
+            if updatedProfileIds.count != rules[index].profileIds.count {
+                rules[index].profileIds = updatedProfileIds
+                didChange = true
+            }
+        }
+
+        if didChange {
+            saveRules()
+        }
+    }
+
     func findMatchingRule(for url: URL, sourceApp: String?) -> RoutingRule? {
+        let activeProfileId = ProfileManager.shared.activeProfileId
+        let availableProfileIds = Set(ProfileManager.shared.profiles.map(\.id))
         // Rules are evaluated in the current order
         for rule in rules {
-            if rule.matches(url: url, sourceApp: sourceApp) {
+            let effectiveProfileIds = rule.profileIds.filter { availableProfileIds.contains($0) }
+            // No active profile means all rules are eligible, matching the UI's
+            // "None (All Rules Active)" behavior.
+            let profileMatch = activeProfileId == nil ||
+                effectiveProfileIds.isEmpty ||
+                activeProfileId.map(effectiveProfileIds.contains) == true
+            if profileMatch && rule.matches(url: url, sourceApp: sourceApp) {
                 return rule
             }
         }

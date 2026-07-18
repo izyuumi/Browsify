@@ -10,6 +10,7 @@ import AppKit
 struct SettingsView: View {
     @ObservedObject var ruleEngine: RuleEngine
     @ObservedObject var browserDetector: BrowserDetector
+    @ObservedObject var profileManager: ProfileManager = ProfileManager.shared
 
     @State private var stripTrackingParameters = UserDefaults.standard.bool(forKey: "stripTrackingParameters")
 
@@ -27,11 +28,20 @@ struct SettingsView: View {
 
             RulesListView(
                 ruleEngine: ruleEngine,
-                browserDetector: browserDetector
+                browserDetector: browserDetector,
+                profileManager: profileManager
             )
             .tabItem {
                 Label("Rules", systemImage: "list.bullet")
             }
+
+            ProfilesListView(
+                profileManager: profileManager,
+                ruleEngine: ruleEngine
+            )
+                .tabItem {
+                    Label("Profiles", systemImage: "person.2")
+                }
 
             AboutView()
                 .tabItem {
@@ -90,6 +100,7 @@ struct PreferencesView: View {
 struct RulesListView: View {
     @ObservedObject var ruleEngine: RuleEngine
     @ObservedObject var browserDetector: BrowserDetector
+    @ObservedObject var profileManager: ProfileManager
 
     @State private var showingAddRule = false
     @State private var editingRule: RoutingRule?
@@ -108,6 +119,7 @@ struct RulesListView: View {
                     RuleRowView(
                         rule: rule,
                         browserDetector: browserDetector,
+                        profileManager: profileManager,
                         isReorderMode: isReorderMode
                     ) {
                         editingRule = rule
@@ -148,6 +160,7 @@ struct RulesListView: View {
             RuleEditorView(
                 ruleEngine: ruleEngine,
                 browserDetector: browserDetector,
+                profileManager: profileManager,
                 rule: nil
             )
         }
@@ -155,6 +168,7 @@ struct RulesListView: View {
             RuleEditorView(
                 ruleEngine: ruleEngine,
                 browserDetector: browserDetector,
+                profileManager: profileManager,
                 rule: rule
             )
         }
@@ -164,6 +178,7 @@ struct RulesListView: View {
 struct RuleRowView: View {
     let rule: RoutingRule
     @ObservedObject var browserDetector: BrowserDetector
+    @ObservedObject var profileManager: ProfileManager
     let isReorderMode: Bool
     let editAction: () -> Void
     let deleteAction: () -> Void
@@ -223,6 +238,16 @@ struct RuleRowView: View {
                 Text(rule.matchType.rawValue)
                     .font(.caption)
                     .foregroundColor(.secondary)
+                if !rule.profileIds.isEmpty {
+                    let names = rule.profileIds.compactMap { id in
+                        profileManager.profiles.first(where: { $0.id == id })?.name
+                    }.joined(separator: ", ")
+                    if !names.isEmpty {
+                        Text("Profiles: \(names)")
+                            .font(.caption2)
+                            .foregroundColor(.accentColor)
+                    }
+                }
             }
 
             Spacer()
@@ -668,6 +693,97 @@ struct BrowserEditorView: View {
             browserDetector.addCustomBrowser(newBrowser)
         }
         dismiss()
+    }
+}
+
+struct ProfilesListView: View {
+    @ObservedObject var profileManager: ProfileManager
+    @ObservedObject var ruleEngine: RuleEngine
+    @State private var showingAddProfile = false
+    @State private var newProfileName = ""
+
+    var body: some View {
+        VStack {
+            if profileManager.profiles.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No profiles defined.")
+                    Text("Add a profile to group your routing rules.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(profileManager.profiles) { profile in
+                        HStack {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.accentColor)
+                                .opacity(profileManager.activeProfileId == profile.id ? 1 : 0)
+
+                            Text(profile.name)
+
+                            Spacer()
+
+                            Button(profileManager.activeProfileId == profile.id ? "Active" : "Activate") {
+                                profileManager.setActiveProfile(
+                                    profileManager.activeProfileId == profile.id ? nil : profile
+                                )
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button(action: {
+                                ruleEngine.removeProfileReferences(profile.id)
+                                profileManager.deleteProfile(profile)
+                            }) {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.red)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+
+            Divider()
+
+            HStack {
+                if showingAddProfile {
+                    TextField("Profile name", text: $newProfileName)
+                        .textFieldStyle(.roundedBorder)
+
+                    Button("Add") {
+                        guard !newProfileName.isEmpty else { return }
+                        profileManager.addProfile(Profile(name: newProfileName))
+                        newProfileName = ""
+                        showingAddProfile = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(newProfileName.isEmpty)
+                    .keyboardShortcut(.return)
+
+                    Button("Cancel") {
+                        newProfileName = ""
+                        showingAddProfile = false
+                    }
+                    .keyboardShortcut(.escape)
+                } else {
+                    Button(action: { showingAddProfile = true }) {
+                        Label("Add Profile", systemImage: "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+
+                Spacer()
+
+                if profileManager.activeProfileId != nil {
+                    Button("Clear Active Profile") {
+                        profileManager.setActiveProfile(nil)
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+            .padding()
+        }
     }
 }
 

@@ -31,19 +31,37 @@ struct RoutingRule: Identifiable, Codable {
     var matchType: RuleMatchType
     var pattern: String
     var target: RuleTarget
+    /// Profile IDs this rule belongs to. Empty = global (always active).
+    var profileIds: [UUID]
 
     init(
         id: UUID = UUID(),
         isEnabled: Bool = true,
         matchType: RuleMatchType,
         pattern: String,
-        target: RuleTarget
+        target: RuleTarget,
+        profileIds: [UUID] = []
     ) {
         self.id = id
         self.isEnabled = isEnabled
         self.matchType = matchType
         self.pattern = pattern
         self.target = target
+        self.profileIds = profileIds
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, isEnabled, matchType, pattern, target, profileIds
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
+        matchType = try container.decode(RuleMatchType.self, forKey: .matchType)
+        pattern = try container.decode(String.self, forKey: .pattern)
+        target = try container.decode(RuleTarget.self, forKey: .target)
+        profileIds = try container.decodeIfPresent([UUID].self, forKey: .profileIds) ?? []
     }
 
     func matches(url: URL, sourceApp: String?) -> Bool {

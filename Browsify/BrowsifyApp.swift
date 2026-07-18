@@ -82,6 +82,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        // Update menu when profiles change
+        ProfileManager.shared.$profiles
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.rebuildStatusMenu()
+            }
+            .store(in: &cancellables)
+
+        ProfileManager.shared.$activeProfileId
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.rebuildStatusMenu()
+            }
+            .store(in: &cancellables)
+
         // Listen for URL events
         setupURLHandling()
 
@@ -369,6 +384,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.terminate(self)
     }
 
+    @objc private func selectNoProfile(_ sender: NSMenuItem) {
+        ProfileManager.shared.setActiveProfile(nil)
+    }
+
+    @objc private func selectProfile(_ sender: NSMenuItem) {
+        guard let profile = sender.representedObject as? Profile else { return }
+        ProfileManager.shared.setActiveProfile(profile)
+    }
+
     private func rebuildStatusMenu() {
         DispatchQueue.main.async {
             guard let statusItem = self.statusItem else { return }
@@ -379,6 +403,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let urlHandler = URLHandler.shared
             let browserDetector = urlHandler.getBrowserDetector()
             let defaultPreference = urlHandler.defaultBrowserPreference
+
+            // Profiles section
+            let profileManager = ProfileManager.shared
+            if !profileManager.profiles.isEmpty {
+                let headerItem = NSMenuItem(title: "Profile", action: nil, keyEquivalent: "")
+                headerItem.isEnabled = false
+                menu.addItem(headerItem)
+
+                let noneItem = NSMenuItem(title: "None (All Rules Active)", action: #selector(self.selectNoProfile(_:)), keyEquivalent: "")
+                noneItem.target = self
+                noneItem.state = profileManager.activeProfileId == nil ? .on : .off
+                menu.addItem(noneItem)
+
+                for profile in profileManager.profiles {
+                    let item = NSMenuItem(title: profile.name, action: #selector(self.selectProfile(_:)), keyEquivalent: "")
+                    item.target = self
+                    item.representedObject = profile
+                    item.state = profileManager.activeProfileId == profile.id ? .on : .off
+                    menu.addItem(item)
+                }
+
+                menu.addItem(NSMenuItem.separator())
+            }
 
             // Prompt option
             let promptItem = NSMenuItem(title: "Prompt", action: #selector(self.selectPromptOption(_:)), keyEquivalent: "")

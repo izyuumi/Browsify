@@ -8,6 +8,7 @@ import SwiftUI
 struct RuleEditorView: View {
     @ObservedObject var ruleEngine: RuleEngine
     @ObservedObject var browserDetector: BrowserDetector
+    @ObservedObject var profileManager: ProfileManager
     @Environment(\.dismiss) var dismiss
 
     let rule: RoutingRule?
@@ -18,19 +19,22 @@ struct RuleEditorView: View {
     @State private var selectedProfile: BrowserProfile?
     @State private var selectedDesktopApp: DesktopApp?
     @State private var targetType: TargetType = .browser
+    @State private var selectedProfileIds: Set<UUID>
 
     enum TargetType {
         case browser
         case desktopApp
     }
 
-    init(ruleEngine: RuleEngine, browserDetector: BrowserDetector, rule: RoutingRule?) {
+    init(ruleEngine: RuleEngine, browserDetector: BrowserDetector, profileManager: ProfileManager, rule: RoutingRule?) {
         self.ruleEngine = ruleEngine
         self.browserDetector = browserDetector
+        self.profileManager = profileManager
         self.rule = rule
 
         _matchType = State(initialValue: rule?.matchType ?? .domain)
         _pattern = State(initialValue: rule?.pattern ?? "")
+        _selectedProfileIds = State(initialValue: Set(rule?.profileIds ?? []))
 
         if let rule = rule {
             switch rule.target {
@@ -95,6 +99,23 @@ struct RuleEditorView: View {
                         .foregroundColor(.secondary)
                 }
 
+                if !profileManager.profiles.isEmpty {
+                    Section("Profile") {
+                        Text("Apply only when this profile is active (leave all unchecked for global rule):")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        ForEach(profileManager.profiles) { profile in
+                            Toggle(profile.name, isOn: Binding(
+                                get: { selectedProfileIds.contains(profile.id) },
+                                set: { checked in
+                                    if checked { selectedProfileIds.insert(profile.id) }
+                                    else { selectedProfileIds.remove(profile.id) }
+                                }
+                            ))
+                        }
+                    }
+                }
+
                 Section("Target") {
                     Picker("Open with", selection: $targetType) {
                         Text("Browser").tag(TargetType.browser)
@@ -148,7 +169,7 @@ struct RuleEditorView: View {
             }
             .padding()
         }
-        .frame(width: 500, height: 550)
+        .frame(width: 500, height: profileManager.profiles.isEmpty ? 550 : 650)
         .onAppear {
             browserDetector.detectBrowsers()
         }
@@ -173,6 +194,7 @@ struct RuleEditorView: View {
     }
 
     private func saveRule() {
+        let availableProfileIds = Set(profileManager.profiles.map(\.id))
         let target: RuleTarget
         if targetType == .browser, let browser = selectedBrowser {
             target = .browser(browserId: browser.id, profileId: selectedProfile?.id)
@@ -187,7 +209,8 @@ struct RuleEditorView: View {
             isEnabled: rule?.isEnabled ?? true,
             matchType: matchType,
             pattern: pattern,
-            target: target
+            target: target,
+            profileIds: Array(selectedProfileIds.intersection(availableProfileIds))
         )
 
         if rule != nil {
