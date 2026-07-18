@@ -55,7 +55,7 @@ struct Browser: Identifiable, Codable, Hashable {
         retryWithoutArguments: Bool
     ) {
         let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = false
+        configuration.createsNewApplicationInstance = !arguments.isEmpty
         configuration.arguments = arguments
 
         NSWorkspace.shared.open([url], withApplicationAt: applicationURL, configuration: configuration) { _, error in

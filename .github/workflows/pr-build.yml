@@ -5,16 +5,16 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  test:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build macOS app
+      - name: Test macOS app
         run: |
           xcodebuild \
             -project Browsify.xcodeproj \
             -scheme Browsify \
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO \
-            build
+            test
