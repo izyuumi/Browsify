@@ -54,7 +54,7 @@ DETAILS
 • Auto-detects installed browsers, including custom ones
 • Hide browsers you never use; reorder the rest
 • Test your rules with a built-in test picker
-• Free and open source
+• Open source — inspect the code on GitHub
 
 Requires macOS 14.0 or later. To use Browsify, set it as your default browser in System Settings — the welcome screen walks you through it.
 
@@ -79,7 +79,7 @@ Secondary (optional): Utilities
 
 ## Pricing
 
-Free, all territories.
+Paid up front: USD 4.99 base price (Apple-suggested equivalents in all other territories, e.g. ¥700 JPY).
 
 ## Review Notes (for App Review)
 
