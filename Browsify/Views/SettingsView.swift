@@ -213,11 +213,8 @@ struct RuleRowView: View {
     var body: some View {
         HStack(spacing: 10) {
             if !isReorderMode {
-                Toggle("", isOn: .constant(rule.isEnabled))
+                Toggle("", isOn: Binding(get: { rule.isEnabled }, set: { _ in toggleAction() }))
                     .labelsHidden()
-                    .onChange(of: rule.isEnabled) { _, _ in
-                        toggleAction()
-                    }
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -355,6 +352,8 @@ struct BrowsersListView: View {
                             ProfileAccessRowView(browser: browser, browserDetector: browserDetector)
                         }
                     }
+
+                    ProfileLaunchingRowView()
                 }
 
                 Section("Browsers") {
@@ -429,6 +428,32 @@ private struct ProfileAccessRowView: View {
                     browserDetector.requestProfileAccess(for: browser)
                 }
             }
+        }
+    }
+}
+
+private struct ProfileLaunchingRowView: View {
+    @ObservedObject private var helperScriptManager = HelperScriptManager.shared
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Profile launching")
+                Text(helperScriptManager.isInstalled ? "Profile launching enabled" : "Helper not installed — links open in the browser's default profile")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            if !helperScriptManager.isInstalled {
+                Button("Install Helper…") {
+                    _ = helperScriptManager.installScript()
+                }
+            }
+        }
+        .onAppear {
+            helperScriptManager.refreshStatus()
         }
     }
 }

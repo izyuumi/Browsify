@@ -253,13 +253,13 @@ class BrowserDetector: ObservableObject {
     private func detectProfiles(for bundleId: String, name: String) -> [BrowserProfile] {
         var profiles: [BrowserProfile] = []
 
-        // Chrome-based browsers
-        if ["com.google.Chrome", "com.brave.Browser", "com.microsoft.edgemac", "com.vivaldi.Vivaldi"].contains(bundleId) {
+        // Chrome/Chromium-based browsers
+        if BrowserProfile.isChromiumFamilyBundleIdentifier(bundleId) {
             profiles = detectChromeProfiles(bundleId: bundleId)
         }
 
         // Firefox
-        if bundleId.contains("firefox") {
+        if BrowserProfile.usesFirefoxProfile(bundleId) {
             profiles = detectFirefoxProfiles(bundleId: bundleId)
         }
 

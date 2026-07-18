@@ -31,4 +31,16 @@ final class BrowserRoutingTests: XCTestCase {
 
         XCTAssertEqual(profile.launchArguments(for: url), ["-P", "Personal", "https://example.com"])
     }
+
+    func testIncidentalBundleIdentifierIsNotChromium() {
+        XCTAssertFalse(BrowserProfile.isChromiumFamilyBundleIdentifier("com.example.search"))
+    }
+
+    func testArcIsNotChromium() {
+        XCTAssertFalse(BrowserProfile.isChromiumFamilyBundleIdentifier("company.thebrowser.Browser"))
+    }
+
+    func testFirefoxBundleIdentifierUsesFirefoxProfile() {
+        XCTAssertTrue(BrowserProfile.usesFirefoxProfile("org.mozilla.firefox"))
+    }
 }

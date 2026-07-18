@@ -11,6 +11,7 @@ struct WelcomeView: View {
     let doneAction: () -> Void
 
     @State private var requestedDefaultBrowser = false
+    @ObservedObject private var helperScriptManager = HelperScriptManager.shared
 
     private var appIcon: NSImage {
         if let copiedIcon = NSApp.applicationIconImage.copy() as? NSImage {
@@ -73,6 +74,16 @@ struct WelcomeView: View {
                     } else {
                         ForEach(browserDetector.profileCapableBrowsers) { browser in
                             ProfileAccessView(browser: browser, browserDetector: browserDetector)
+                        }
+                    }
+
+                    HStack {
+                        Text(helperScriptManager.isInstalled ? "Profile launching enabled" : "Install the helper to open links in selected profiles.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        if !helperScriptManager.isInstalled {
+                            Button("Install Helper…") { _ = helperScriptManager.installScript() }
                         }
                     }
                 }

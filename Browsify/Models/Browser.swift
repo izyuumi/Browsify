@@ -37,8 +37,18 @@ struct Browser: Identifiable, Codable, Hashable {
 
     func openURL(_ url: URL, profile: BrowserProfile? = nil) {
         let arguments = profile?.profilePath.isEmpty == false ? profile?.launchArguments(for: url) ?? [] : []
+        let helperScriptURL: URL? = MainActor.assumeIsolated {
+            let helperScriptManager = HelperScriptManager.shared
+            return helperScriptManager.isInstalled ? helperScriptManager.scriptURL : nil
+        }
         let openBrowser: (URL) -> Void = { applicationURL in
-            open(url, withApplicationAt: applicationURL, arguments: arguments, retryWithoutArguments: !arguments.isEmpty)
+            open(
+                url,
+                withApplicationAt: applicationURL,
+                arguments: arguments,
+                retryWithoutArguments: !arguments.isEmpty,
+                helperScriptURL: helperScriptURL
+            )
         }
 
         // Known browsers are resolved through LaunchServices. Custom browsers retain the
@@ -52,8 +62,38 @@ struct Browser: Identifiable, Codable, Hashable {
         _ url: URL,
         withApplicationAt applicationURL: URL,
         arguments: [String],
-        retryWithoutArguments: Bool
+        retryWithoutArguments: Bool,
+        helperScriptURL: URL?
     ) {
+        if !arguments.isEmpty, let helperScriptURL {
+            do {
+                let task = try NSUserUnixTask(url: helperScriptURL)
+                try task.execute(withArguments: ["-na", applicationURL.path, "--args"] + arguments) { error in
+                    guard let error else { return }
+
+                    Self.logger.error("Helper profile launch failed; opening in default profile: \(error.localizedDescription, privacy: .public)")
+                    self.open(
+                        url,
+                        withApplicationAt: applicationURL,
+                        arguments: [],
+                        retryWithoutArguments: false,
+                        helperScriptURL: nil
+                    )
+                }
+                return
+            } catch {
+                Self.logger.error("Unable to start helper profile launch; opening in default profile: \(error.localizedDescription, privacy: .public)")
+                open(
+                    url,
+                    withApplicationAt: applicationURL,
+                    arguments: [],
+                    retryWithoutArguments: false,
+                    helperScriptURL: nil
+                )
+                return
+            }
+        }
+
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = !arguments.isEmpty
         configuration.arguments = arguments
@@ -63,7 +103,13 @@ struct Browser: Identifiable, Codable, Hashable {
 
             if retryWithoutArguments {
                 Self.logger.error("Profile launch failed; retrying without arguments: \(error.localizedDescription, privacy: .public)")
-                self.open(url, withApplicationAt: applicationURL, arguments: [], retryWithoutArguments: false)
+                self.open(
+                    url,
+                    withApplicationAt: applicationURL,
+                    arguments: [],
+                    retryWithoutArguments: false,
+                    helperScriptURL: nil
+                )
             } else {
                 Self.logger.error("Unable to open URL in browser: \(error.localizedDescription, privacy: .public)")
             }
@@ -84,18 +130,32 @@ struct BrowserProfile: Identifiable, Codable, Hashable {
         self.browserBundleId = browserBundleId
     }
 
-    func launchArguments(for url: URL) -> [String] {
-        let normalizedBundleIdentifier = browserBundleId.lowercased()
+    private static let chromiumFamilyBundleIdentifiers: Set<String> = [
+        "com.google.Chrome",
+        "com.google.Chrome.beta",
+        "com.google.Chrome.canary",
+        "org.chromium.Chromium",
+        "com.brave.Browser",
+        "com.microsoft.edgemac",
+        "com.vivaldi.Vivaldi",
+    ]
 
+    static func isChromiumFamilyBundleIdentifier(_ bundleIdentifier: String) -> Bool {
+        chromiumFamilyBundleIdentifiers.contains(bundleIdentifier)
+    }
+
+    static func usesFirefoxProfile(_ bundleIdentifier: String) -> Bool {
+        bundleIdentifier.hasPrefix("org.mozilla.firefox")
+    }
+
+    func launchArguments(for url: URL) -> [String] {
         // Chrome/Chromium-based browsers
-        if normalizedBundleIdentifier.contains("chrome") || normalizedBundleIdentifier.contains("chromium") ||
-           normalizedBundleIdentifier.contains("brave") || normalizedBundleIdentifier.contains("edge") ||
-           normalizedBundleIdentifier.contains("vivaldi") || normalizedBundleIdentifier.contains("arc") {
+        if Self.isChromiumFamilyBundleIdentifier(browserBundleId) {
             return ["--profile-directory=\(profilePath)", url.absoluteString]
         }
 
         // Firefox
-        if normalizedBundleIdentifier.contains("firefox") {
+        if Self.usesFirefoxProfile(browserBundleId) {
             return ["-P", name, url.absoluteString]
         }
 
