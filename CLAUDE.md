@@ -102,7 +102,13 @@ Add entry to DesktopApp.knownApps in DesktopApp.swift:59 with:
 
 ### Testing URL Routing
 
-Use "Test Picker..." menu item (BrowsifyApp.swift:254) to simulate URL handling without setting as default browser.
+There is no in-app test-picker menu item. To exercise routing without making Browsify the system default, send a URL straight to the running app — this delivers the same `kAEGetURL` Apple Event the system sends when Browsify *is* the default:
+
+```bash
+open -b to.yumi.Browsify https://example.com
+```
+
+To test the real end-to-end path (links originating from other apps, source-app rules), set Browsify as default via the Welcome window's "Set as Default Browser" button, then click a link elsewhere.
 
 ## Important Files
 

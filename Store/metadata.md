@@ -83,4 +83,18 @@ Paid up front: USD 4.99 base price (Apple-suggested equivalents in all other ter
 
 ## Review Notes (for App Review)
 
-Browsify is a default-browser utility (same category as long-approved apps like Velja). To test: launch the app, click "Set as Default Browser" on the welcome screen and confirm the macOS prompt. Then click any http/https link in another app — Browsify's picker appears, or a configured rule routes the link automatically. The optional "Grant Access…" buttons use standard NSOpenPanel security-scoped bookmarks to read browser profile names; the app functions fully without them. No account or server is involved.
+Browsify is a default-browser utility (same category as long-approved apps like Velja). It never displays web content itself — it receives a clicked http/https link and hands it off to a real browser or app, chosen by the user's rules.
+
+IMPORTANT — setting Browsify as the default browser is required before it can do anything. Until macOS is told to deliver http/https links to Browsify, no links reach the app and it will appear to do nothing. This is inherent to this category of utility.
+
+To test (about one minute):
+
+1. Launch Browsify. A Welcome window appears and an icon is added to the menu bar. There is no Dock icon by design (LSUIElement) — the menu bar icon is the app's interface.
+2. In the Welcome window click "Set as Default Browser" and confirm the macOS system prompt.
+3. Click any http/https link in another app (Mail, Messages), or run `open https://www.apple.com` in Terminal. Browsify's picker panel appears at the cursor listing installed browsers; choose one and the link opens there. Number keys 1, 2, 3… also select.
+4. For rule-based routing: open Settings from the menu bar icon, go to Rules, add a rule — match type "Domain", value "apple.com", target Safari. An apple.com link now opens in Safari immediately with no picker; other links still show the picker.
+5. To restore the previous default: System Settings > Desktop & Dock > Default web browser.
+
+Other features reachable from the same UI: routing by URL pattern (github.com/work/*) or by source app; targeting a specific Chrome/Brave/Edge/Vivaldi/Firefox profile; sending Zoom/Teams/Slack links to those desktop apps instead of a browser; stripping utm_*/fbclid tracking parameters.
+
+The optional "Grant Access…" buttons use a standard NSOpenPanel and security-scoped bookmarks to read browser profile names from each browser's own config files; the app functions fully without them (only profile targeting is unavailable). The app is sandboxed, makes no network requests, has no account or server, and stores all settings locally in user defaults.
