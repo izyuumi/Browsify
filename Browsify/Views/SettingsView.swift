@@ -531,7 +531,7 @@ struct BrowserRowView: View {
                             .foregroundColor(.secondary)
                     }
                 }
-                Text(browser.bundleIdentifier)
+                Text(browser.bundleIdentifier ?? "Bundle ID unavailable")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .opacity(isHidden ? 0.5 : 1.0)

@@ -33,6 +33,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var policyEnforcementTimer: Timer?
     var settingsWindowObserver: NSObjectProtocol?
     var welcomeWindowObserver: NSObjectProtocol?
+    var pickerSizeCancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide from Dock (menu bar only)
@@ -149,16 +150,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             let hostingController = NSHostingController(rootView: pickerView)
 
-            // Calculate dynamic width based on browser count
-            let browserCount = CGFloat(browserDetector.browsers.count)
-            let iconWidth: CGFloat = 80 // 56px icon + 12px spacing + padding
-            let padding: CGFloat = 24 // Minimal left and right padding
-            let dynamicWidth = max(browserCount * iconWidth + padding, 200)
-            let panelHeight: CGFloat = 140 // Minimal design, compact height
-
             // Use custom InteractivePanel that can accept input while maintaining accessory status
             let panel = InteractivePanel(
-                contentRect: NSRect(x: 0, y: 0, width: dynamicWidth, height: panelHeight),
+                contentRect: NSRect(x: 0, y: 0, width: 200, height: 140),
                 styleMask: [.titled, .closable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
@@ -183,20 +177,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             panel.worksWhenModal = true  // Allow panel to receive events even when modal
             panel.becomesKeyOnlyIfNeeded = false  // Always become key to ensure focus
 
-            // Set the frame to our calculated size
-            panel.setFrame(NSRect(x: 0, y: 0, width: dynamicWidth, height: panelHeight), display: false)
-
             self.browserPickerPanel = panel
             self.isPickerOpen = true
 
-            // Position at center of screen using the calculated dimensions
-            if let screen = NSScreen.main {
-                let screenFrame = screen.visibleFrame
-                // Center the window: screen center minus half the panel size
-                let x = screenFrame.origin.x + (screenFrame.width - dynamicWidth) / 2
-                let y = screenFrame.origin.y + (screenFrame.height - panelHeight) / 2
-                panel.setFrameOrigin(NSPoint(x: x, y: y))
-            }
+            self.resizePickerPanel(panel, hostingController: hostingController, display: false)
+            self.pickerSizeCancellable = browserDetector.$browsers
+                .receive(on: RunLoop.main)
+                .sink { [weak self, weak panel, weak hostingController] _ in
+                    guard let self, let panel, let hostingController else { return }
+                    self.resizePickerPanel(panel, hostingController: hostingController, display: panel.isVisible)
+                }
 
             // CRITICAL: Force activation policy to .accessory BEFORE making key
             NSApp.setActivationPolicy(.accessory)
@@ -204,6 +194,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Use makeKeyAndOrderFront to allow the panel to accept input
             NSLog("[AppDelegate] Making panel key and ordering front. Panel isKeyWindow: \(panel.isKeyWindow), NSApp.isActive: \(NSApp.isActive)")
             panel.makeKeyAndOrderFront(nil)
+
+            DispatchQueue.main.async { [weak self, weak panel, weak hostingController] in
+                guard let self, let panel, let hostingController else { return }
+                self.resizePickerPanel(panel, hostingController: hostingController, display: true)
+            }
 
             // CRITICAL: Force app activation to ensure panel receives focus
             NSApp.activate(ignoringOtherApps: true)
@@ -240,6 +235,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func resizePickerPanel(
+        _ panel: NSPanel,
+        hostingController: NSHostingController<BrowserPickerView>,
+        display: Bool
+    ) {
+        guard browserPickerPanel === panel else { return }
+
+        let maximumSize = NSSize(
+            width: (panel.screen ?? NSScreen.main)?.visibleFrame.width ?? 1_000,
+            height: (panel.screen ?? NSScreen.main)?.visibleFrame.height ?? 800
+        )
+        let contentSize = hostingController.sizeThatFits(in: maximumSize)
+        guard contentSize.width > 0, contentSize.height > 0 else { return }
+
+        let frameSize = panel.frameRect(forContentRect: NSRect(origin: .zero, size: contentSize)).size
+        let screenFrame = (panel.screen ?? NSScreen.main)?.visibleFrame
+        let origin = screenFrame.map {
+            NSPoint(
+                x: $0.midX - frameSize.width / 2,
+                y: $0.midY - frameSize.height / 2
+            )
+        } ?? panel.frame.origin
+        panel.setFrame(NSRect(origin: origin, size: frameSize), display: display, animate: false)
+    }
+
     func closeBrowserPicker() {
         DispatchQueue.main.async {
             guard self.isPickerOpen else {
@@ -249,6 +269,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Stop enforcement timer first
             self.policyEnforcementTimer?.invalidate()
             self.policyEnforcementTimer = nil
+            self.pickerSizeCancellable?.cancel()
+            self.pickerSizeCancellable = nil
 
             if let panel = self.browserPickerPanel {
                 panel.orderOut(nil)  // Hide the panel first

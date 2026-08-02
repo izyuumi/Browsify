@@ -36,16 +36,27 @@ struct BrowserPickerView: View {
                     .frame(maxWidth: .infinity)
             }
 
-            // Browser list with numbers
-            let remembered = rememberedBundleId
-            HStack(spacing: 12) {
-                ForEach(Array(browserDetector.browsers.enumerated()), id: \.element.id) { index, browser in
-                    BrowserIcon(
-                        browser: browser,
-                        number: index + 1,
-                        isRemembered: browser.bundleIdentifier == remembered
-                    ) {
-                        openWithBrowser(browser)
+            if browserDetector.browsers.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No browsers found")
+                        .font(.headline)
+
+                    Button("Open Settings…") {
+                        (NSApp.delegate as? AppDelegate)?.showSettings()
+                    }
+                }
+            } else {
+                // Browser list with numbers
+                let remembered = rememberedBundleId
+                HStack(spacing: 12) {
+                    ForEach(Array(browserDetector.browsers.enumerated()), id: \.element.id) { index, browser in
+                        BrowserIcon(
+                            browser: browser,
+                            number: index + 1,
+                            isRemembered: browser.identityKey == remembered
+                        ) {
+                            openWithBrowser(browser)
+                        }
                     }
                 }
             }

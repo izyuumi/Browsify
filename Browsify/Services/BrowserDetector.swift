@@ -7,6 +7,61 @@ import Foundation
 import Combine
 import AppKit
 
+struct BrowserApplicationCandidate: Equatable {
+    let name: String
+    let bundleIdentifier: String?
+    let canonicalPath: String
+
+    var stableIdentityKey: String {
+        bundleIdentifier ?? canonicalPath
+    }
+}
+
+enum BrowserDiscovery {
+    static func merge(
+        known: [BrowserApplicationCandidate],
+        dynamic: [BrowserApplicationCandidate],
+        mainBundleIdentifier: String?,
+        mainBundlePath: String?
+    ) -> [BrowserApplicationCandidate] {
+        var applications: [BrowserApplicationCandidate] = []
+        var bundleIdentifiers = Set<String>()
+        var paths = Set<String>()
+
+        for application in known + dynamic {
+            if (mainBundleIdentifier != nil && application.bundleIdentifier == mainBundleIdentifier) ||
+                (mainBundlePath != nil && application.canonicalPath == mainBundlePath) ||
+                (application.bundleIdentifier == nil && application.name == "Browsify") {
+                continue
+            }
+
+            if paths.contains(application.canonicalPath) {
+                continue
+            }
+
+            if let bundleIdentifier = application.bundleIdentifier,
+               bundleIdentifiers.contains(bundleIdentifier) {
+                continue
+            }
+
+            applications.append(application)
+            paths.insert(application.canonicalPath)
+            if let bundleIdentifier = application.bundleIdentifier {
+                bundleIdentifiers.insert(bundleIdentifier)
+            }
+        }
+
+        return applications
+    }
+
+    static func applyingSafariFallback<Application>(
+        to applications: [Application],
+        safari: Application?
+    ) -> [Application] {
+        applications.isEmpty ? safari.map { [$0] } ?? [] : applications
+    }
+}
+
 class BrowserDetector: ObservableObject {
     @Published var browsers: [Browser] = []
     @Published var allBrowsers: [Browser] = [] // Includes hidden browsers
@@ -19,6 +74,7 @@ class BrowserDetector: ObservableObject {
 
     // Cache detected browsers to avoid redundant filesystem scans
     private var cachedDetectedBrowsers: [Browser] = []
+    private var safariFallbackBrowser: Browser?
 
     init(accessManager: AccessManager = .shared) {
         self.accessManager = accessManager
@@ -151,33 +207,40 @@ class BrowserDetector: ObservableObject {
     ]
 
     func detectBrowsers() {
-        var detectedBrowsers: [Browser] = []
         var uuidMap = loadBrowserUUIDMap()
 
-        // Auto-detect known browsers
-        for (name, bundleId) in knownBrowsers {
-            if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
-                let path = appURL.path
-
-                // Detect profiles for this browser
-                let profiles = detectProfiles(for: bundleId, name: name)
-
-                // Reuse existing UUID if available, otherwise generate new one
-                let browserId = uuidMap[bundleId] ?? UUID()
-                uuidMap[bundleId] = browserId
-
-                let browser = Browser(
-                    id: browserId,
-                    name: name,
-                    bundleIdentifier: bundleId,
-                    path: path,
-                    icon: nil, // Let iconImage computed property handle icon loading
-                    profiles: profiles
-                )
-
-                detectedBrowsers.append(browser)
+        let knownApplications = knownBrowsers.compactMap { name, bundleIdentifier -> BrowserApplicationCandidate? in
+            guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
+                return nil
             }
+
+            return BrowserApplicationCandidate(
+                name: name,
+                bundleIdentifier: bundleIdentifier,
+                canonicalPath: canonicalPath(for: appURL)
+            )
         }
+
+        let dynamicApplications = NSWorkspace.shared.urlsForApplications(
+            toOpen: URL(string: "https://example.com")!
+        ).map { appURL in
+            BrowserApplicationCandidate(
+                name: displayName(for: appURL),
+                bundleIdentifier: Bundle(url: appURL)?.bundleIdentifier,
+                canonicalPath: canonicalPath(for: appURL)
+            )
+        }
+
+        let applications = BrowserDiscovery.merge(
+            known: knownApplications,
+            dynamic: dynamicApplications,
+            mainBundleIdentifier: Bundle.main.bundleIdentifier,
+            mainBundlePath: canonicalPath(for: Bundle.main.bundleURL)
+        )
+
+        var detectedBrowsers = applications.map { makeBrowser(from: $0, uuidMap: &uuidMap) }
+        safariFallbackBrowser = detectedBrowsers.first(where: { $0.bundleIdentifier == "com.apple.Safari" })
+            ?? makeSafariFallbackBrowser(uuidMap: &uuidMap)
 
         // Add custom browsers (they have their own stable UUIDs)
         let customBrowsers = loadCustomBrowsers()
@@ -195,17 +258,66 @@ class BrowserDetector: ObservableObject {
         updateBrowserVisibility()
     }
 
+    private func canonicalPath(for appURL: URL) -> String {
+        appURL.standardizedFileURL.resolvingSymlinksInPath().path
+    }
+
+    private func displayName(for appURL: URL) -> String {
+        let displayName = FileManager.default.displayName(atPath: appURL.path)
+        return displayName.hasSuffix(".app") ? String(displayName.dropLast(4)) : displayName
+    }
+
+    private func makeBrowser(
+        from application: BrowserApplicationCandidate,
+        uuidMap: inout [String: UUID]
+    ) -> Browser {
+        let identityKey = application.stableIdentityKey
+        let browserId = uuidMap[identityKey] ?? UUID()
+        uuidMap[identityKey] = browserId
+
+        let profiles = application.bundleIdentifier.map {
+            detectProfiles(for: $0, name: application.name)
+        } ?? []
+
+        return Browser(
+            id: browserId,
+            name: application.name,
+            bundleIdentifier: application.bundleIdentifier,
+            path: application.canonicalPath,
+            icon: nil,
+            profiles: profiles
+        )
+    }
+
+    private func makeSafariFallbackBrowser(uuidMap: inout [String: UUID]) -> Browser? {
+        guard let safariURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Safari") else {
+            return nil
+        }
+
+        return makeBrowser(
+            from: BrowserApplicationCandidate(
+                name: "Safari",
+                bundleIdentifier: "com.apple.Safari",
+                canonicalPath: canonicalPath(for: safariURL)
+            ),
+            uuidMap: &uuidMap
+        )
+    }
+
     /// Installed browsers whose profile metadata can be read after a user grant.
     var profileCapableBrowsers: [Browser] {
-        allBrowsers.filter { accessManager.supportsProfileDetection(for: $0.bundleIdentifier) }
+        allBrowsers.filter {
+            $0.bundleIdentifier.map { accessManager.supportsProfileDetection(for: $0) } ?? false
+        }
     }
 
     func hasProfileAccess(for browser: Browser) -> Bool {
-        accessManager.hasProfileFolderAccess(for: browser.bundleIdentifier)
+        browser.bundleIdentifier.map { accessManager.hasProfileFolderAccess(for: $0) } ?? false
     }
 
     func requestProfileAccess(for browser: Browser) {
-        accessManager.requestProfileFolderAccess(for: browser.bundleIdentifier) { [weak self] granted in
+        guard let bundleIdentifier = browser.bundleIdentifier else { return }
+        accessManager.requestProfileFolderAccess(for: bundleIdentifier) { [weak self] granted in
             guard granted else { return }
             self?.detectBrowsers()
         }
@@ -246,7 +358,11 @@ class BrowserDetector: ObservableObject {
             // allBrowsers includes hidden browsers (for settings view)
             self.allBrowsers = self.cachedDetectedBrowsers
             // browsers excludes hidden browsers (for picker view)
-            self.browsers = self.cachedDetectedBrowsers.filter { !hiddenIds.contains($0.id) }
+            let visibleBrowsers = self.cachedDetectedBrowsers.filter { !hiddenIds.contains($0.id) }
+            self.browsers = BrowserDiscovery.applyingSafariFallback(
+                to: visibleBrowsers,
+                safari: self.safariFallbackBrowser
+            )
         }
     }
 

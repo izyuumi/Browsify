@@ -14,18 +14,23 @@ struct Browser: Identifiable, Codable, Hashable {
     )
     let id: UUID
     let name: String
-    let bundleIdentifier: String
+    let bundleIdentifier: String?
     let path: String
     let icon: Data?
     var profiles: [BrowserProfile]
 
-    init(id: UUID = UUID(), name: String, bundleIdentifier: String, path: String, icon: Data? = nil, profiles: [BrowserProfile] = []) {
+    init(id: UUID = UUID(), name: String, bundleIdentifier: String?, path: String, icon: Data? = nil, profiles: [BrowserProfile] = []) {
         self.id = id
         self.name = name
         self.bundleIdentifier = bundleIdentifier
         self.path = path
         self.icon = icon
         self.profiles = profiles
+    }
+
+    /// A stable identifier for persistence when a sandboxed process cannot read an app bundle identifier.
+    var identityKey: String {
+        bundleIdentifier ?? path
     }
 
     var iconImage: NSImage? {

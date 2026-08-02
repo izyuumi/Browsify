@@ -133,7 +133,7 @@ class URLHandler: NSObject, ObservableObject {
     private func rememberedBrowser(for url: URL) -> Browser? {
         guard let domain = extractDomain(from: url) else { return nil }
         guard let bundleId = domainBrowserMap[domain] else { return nil }
-        return browserDetector.browsers.first(where: { $0.bundleIdentifier == bundleId })
+        return browserDetector.browsers.first(where: { $0.identityKey == bundleId })
     }
 
     /// Returns the bundle identifier of the remembered browser for the current pending URL, if any.
@@ -231,7 +231,7 @@ class URLHandler: NSObject, ObservableObject {
     /// Enforces a cap of `maxDomainBrowserMapSize` entries, evicting excess entries when exceeded.
     private func saveRememberedBrowser(_ browser: Browser, for url: URL) {
         guard let domain = extractDomain(from: url) else { return }
-        domainBrowserMap[domain] = browser.bundleIdentifier
+        domainBrowserMap[domain] = browser.identityKey
         // Enforce size cap: evict excess entries when limit is exceeded
         if domainBrowserMap.count > maxDomainBrowserMapSize {
             let excess = domainBrowserMap.count - maxDomainBrowserMapSize
