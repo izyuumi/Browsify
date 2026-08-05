@@ -42,62 +42,52 @@ struct Browser: Identifiable, Codable, Hashable {
 
     func openURL(_ url: URL, profile: BrowserProfile? = nil) {
         let arguments = profile?.profilePath.isEmpty == false ? profile?.launchArguments(for: url) ?? [] : []
-        let helperScriptURL: URL? = MainActor.assumeIsolated {
-            let helperScriptManager = HelperScriptManager.shared
-            return helperScriptManager.isInstalled ? helperScriptManager.scriptURL : nil
-        }
-        let openBrowser: (URL) -> Void = { applicationURL in
-            open(
-                url,
-                withApplicationAt: applicationURL,
-                arguments: arguments,
-                retryWithoutArguments: !arguments.isEmpty,
-                helperScriptURL: helperScriptURL
-            )
+
+        // Custom browsers retain the security scope received when the user selected their
+        // application bundle; opening through it keeps that grant active for the launch.
+        let openedWithBookmark = AccessManager.shared.withBrowserApplicationAccess(at: path) { applicationURL in
+            open(url, in: [applicationURL], arguments: arguments)
         }
 
-        // Known browsers are resolved through LaunchServices. Custom browsers retain the
-        // security scope received when the user selected their application bundle.
-        if AccessManager.shared.withBrowserApplicationAccess(at: path, perform: openBrowser) == nil {
-            openBrowser(URL(fileURLWithPath: path))
-        }
+        guard openedWithBookmark == nil else { return }
+
+        open(url, in: launchCandidateURLs(), arguments: arguments)
     }
 
-    private func open(
-        _ url: URL,
-        withApplicationAt applicationURL: URL,
-        arguments: [String],
-        retryWithoutArguments: Bool,
-        helperScriptURL: URL?
-    ) {
-        if !arguments.isEmpty, let helperScriptURL {
-            do {
-                let task = try NSUserUnixTask(url: helperScriptURL)
-                try task.execute(withArguments: ["-na", applicationURL.path, "--args"] + arguments) { error in
-                    guard let error else { return }
+    /// Locations to try, in order, when launching this browser.
+    ///
+    /// The bundle identifier is asked of LaunchServices at launch time rather than reusing a
+    /// stored path: a stored path can be stale, and for system apps it may point into a
+    /// read-protected location (Safari lives under `/System/Volumes/Preboot/Cryptexes`, which a
+    /// sandboxed process cannot reach). Asking LaunchServices keeps the launch working in both
+    /// cases, and the recorded path stays as a fallback for browsers without a readable bundle ID.
+    private func launchCandidateURLs() -> [URL] {
+        var candidates: [URL] = []
 
-                    Self.logger.error("Helper profile launch failed; opening in default profile: \(error.localizedDescription, privacy: .public)")
-                    self.open(
-                        url,
-                        withApplicationAt: applicationURL,
-                        arguments: [],
-                        retryWithoutArguments: false,
-                        helperScriptURL: nil
-                    )
-                }
-                return
-            } catch {
-                Self.logger.error("Unable to start helper profile launch; opening in default profile: \(error.localizedDescription, privacy: .public)")
-                open(
-                    url,
-                    withApplicationAt: applicationURL,
-                    arguments: [],
-                    retryWithoutArguments: false,
-                    helperScriptURL: nil
-                )
-                return
+        if let bundleIdentifier,
+           let resolvedURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) {
+            candidates.append(resolvedURL)
+        }
+
+        if !path.isEmpty {
+            let recordedURL = URL(fileURLWithPath: path)
+            if !candidates.contains(recordedURL) {
+                candidates.append(recordedURL)
             }
         }
+
+        return candidates
+    }
+
+    /// Opens the URL in the first candidate that accepts it, degrading to a plain launch
+    /// (no profile arguments) before giving up so a link never silently fails to open.
+    private func open(_ url: URL, in candidateURLs: [URL], arguments: [String]) {
+        guard let applicationURL = candidateURLs.first else {
+            Self.logger.error("No launchable location for browser \(name, privacy: .public)")
+            return
+        }
+
+        let remainingCandidates = Array(candidateURLs.dropFirst())
 
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = !arguments.isEmpty
@@ -106,17 +96,13 @@ struct Browser: Identifiable, Codable, Hashable {
         NSWorkspace.shared.open([url], withApplicationAt: applicationURL, configuration: configuration) { _, error in
             guard let error else { return }
 
-            if retryWithoutArguments {
-                Self.logger.error("Profile launch failed; retrying without arguments: \(error.localizedDescription, privacy: .public)")
-                self.open(
-                    url,
-                    withApplicationAt: applicationURL,
-                    arguments: [],
-                    retryWithoutArguments: false,
-                    helperScriptURL: nil
-                )
-            } else {
-                Self.logger.error("Unable to open URL in browser: \(error.localizedDescription, privacy: .public)")
+            Self.logger.error("Unable to open URL at \(applicationURL.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+
+            if !remainingCandidates.isEmpty {
+                self.open(url, in: remainingCandidates, arguments: arguments)
+            } else if !arguments.isEmpty {
+                // The profile arguments may be what the browser rejected — retry plainly.
+                self.open(url, in: candidateURLs, arguments: [])
             }
         }
     }

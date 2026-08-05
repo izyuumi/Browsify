@@ -35,6 +35,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var welcomeWindowObserver: NSObjectProtocol?
     var pickerSizeCancellable: AnyCancellable?
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Must be installed before launch finishes: when a link click cold-launches Browsify,
+        // the kAEGetURL event is delivered during launch and is dropped if no handler exists yet.
+        setupURLHandling()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide from Dock (menu bar only)
         NSApp.setActivationPolicy(.accessory)
@@ -53,8 +59,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         rebuildStatusMenu()
 
         // Observe showBrowserPicker changes and react immediately
+        // The current value is delivered on subscribe: a link that cold-launched the app is
+        // handled before this point, so skipping it would leave the picker unshown.
         urlHandler.$showBrowserPicker
-            .dropFirst() // Skip initial value to avoid premature firing
             .removeDuplicates() // Ignore duplicate values
             .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main) // Debounce rapid changes
             .sink { [weak self] shouldShow in
@@ -97,9 +104,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.rebuildStatusMenu()
             }
             .store(in: &cancellables)
-
-        // Listen for URL events
-        setupURLHandling()
 
         if !UserDefaults.standard.bool(forKey: "hasCompletedWelcome") {
             DispatchQueue.main.async { [weak self] in
@@ -397,9 +401,39 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    @objc func testPicker() {
-        let testURL = URL(string: "https://www.example.com")!
-        URLHandler.shared.handleURL(testURL, sourceApp: nil)
+    /// Routes a link through the full pipeline without Browsify being the system default,
+    /// so routing can be exercised (and demonstrated) before changing the default browser.
+    @objc func openTestLink() {
+        let alert = NSAlert()
+        alert.messageText = "Open a Link"
+        alert.informativeText = "Browsify will route this link exactly as it would a link clicked in another app."
+        alert.addButton(withTitle: "Open")
+        alert.addButton(withTitle: "Cancel")
+
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        field.stringValue = "https://www.apple.com"
+        field.placeholderString = "https://www.apple.com"
+        alert.accessoryView = field
+
+        NSApp.activate(ignoringOtherApps: true)
+        alert.window.initialFirstResponder = field
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let entered = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let candidate = entered.isEmpty ? "https://www.apple.com" : entered
+        let normalized = candidate.contains("://") ? candidate : "https://\(candidate)"
+
+        guard let url = URL(string: normalized), url.host != nil else {
+            let error = NSAlert()
+            error.messageText = "That doesn’t look like a web address"
+            error.informativeText = "Enter an address such as https://www.apple.com."
+            error.addButton(withTitle: "OK")
+            error.runModal()
+            return
+        }
+
+        URLHandler.shared.handleURL(url, sourceApp: Bundle.main.bundleIdentifier)
     }
 
     @objc func quit() {
@@ -483,6 +517,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     menu.addItem(browserItem)
                 }
             }
+
+            menu.addItem(NSMenuItem.separator())
+
+            let testLinkItem = NSMenuItem(title: "Open a Link…", action: #selector(self.openTestLink), keyEquivalent: "o")
+            testLinkItem.target = self
+            menu.addItem(testLinkItem)
 
             menu.addItem(NSMenuItem.separator())
 

@@ -10,7 +10,18 @@ import AppKit
 struct BrowserApplicationCandidate: Equatable {
     let name: String
     let bundleIdentifier: String?
+    /// Symlink-resolved path, used only to recognise two entries as the same application.
     let canonicalPath: String
+    /// Path as LaunchServices reported it, used when launching. Symlink-resolved paths can
+    /// point into locations a sandboxed process cannot read, so they are never launched from.
+    let launchPath: String
+
+    init(name: String, bundleIdentifier: String?, canonicalPath: String, launchPath: String? = nil) {
+        self.name = name
+        self.bundleIdentifier = bundleIdentifier
+        self.canonicalPath = canonicalPath
+        self.launchPath = launchPath ?? canonicalPath
+    }
 
     var stableIdentityKey: String {
         bundleIdentifier ?? canonicalPath
@@ -217,7 +228,8 @@ class BrowserDetector: ObservableObject {
             return BrowserApplicationCandidate(
                 name: name,
                 bundleIdentifier: bundleIdentifier,
-                canonicalPath: canonicalPath(for: appURL)
+                canonicalPath: canonicalPath(for: appURL),
+                launchPath: appURL.path
             )
         }
 
@@ -227,7 +239,8 @@ class BrowserDetector: ObservableObject {
             BrowserApplicationCandidate(
                 name: displayName(for: appURL),
                 bundleIdentifier: Bundle(url: appURL)?.bundleIdentifier,
-                canonicalPath: canonicalPath(for: appURL)
+                canonicalPath: canonicalPath(for: appURL),
+                launchPath: appURL.path
             )
         }
 
@@ -283,7 +296,7 @@ class BrowserDetector: ObservableObject {
             id: browserId,
             name: application.name,
             bundleIdentifier: application.bundleIdentifier,
-            path: application.canonicalPath,
+            path: application.launchPath,
             icon: nil,
             profiles: profiles
         )
@@ -298,7 +311,8 @@ class BrowserDetector: ObservableObject {
             from: BrowserApplicationCandidate(
                 name: "Safari",
                 bundleIdentifier: "com.apple.Safari",
-                canonicalPath: canonicalPath(for: safariURL)
+                canonicalPath: canonicalPath(for: safariURL),
+                launchPath: safariURL.path
             ),
             uuidMap: &uuidMap
         )

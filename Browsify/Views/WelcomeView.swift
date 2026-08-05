@@ -10,8 +10,7 @@ struct WelcomeView: View {
     @ObservedObject var browserDetector: BrowserDetector
     let doneAction: () -> Void
 
-    @State private var requestedDefaultBrowser = false
-    @ObservedObject private var helperScriptManager = HelperScriptManager.shared
+    @State private var isDefaultBrowser = false
 
     private var appIcon: NSImage {
         if let copiedIcon = NSApp.applicationIconImage.copy() as? NSImage {
@@ -46,16 +45,35 @@ struct WelcomeView: View {
 
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("1. Make Browsify your default browser")
+                    Text("1. Try it now")
+                        .font(.headline)
+
+                    HStack {
+                        Button("Open a Link…") {
+                            (NSApp.delegate as? AppDelegate)?.openTestLink()
+                        }
+
+                        Text("Routes a link just like a click in another app.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("2. Make Browsify your default browser")
                         .font(.headline)
 
                     HStack {
                         Button("Set as Default Browser") {
                             setAsDefaultBrowser()
-                            requestedDefaultBrowser = true
                         }
+                        .disabled(isDefaultBrowser)
 
-                        if requestedDefaultBrowser {
+                        if isDefaultBrowser {
+                            Label("Browsify is your default browser", systemImage: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        } else {
                             Text("macOS will ask for confirmation.")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -64,7 +82,7 @@ struct WelcomeView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("2. (Optional) Enable browser profiles")
+                    Text("3. (Optional) Enable browser profiles")
                         .font(.headline)
 
                     if browserDetector.profileCapableBrowsers.isEmpty {
@@ -76,18 +94,9 @@ struct WelcomeView: View {
                             ProfileAccessView(browser: browser, browserDetector: browserDetector)
                         }
                     }
-
-                    HStack {
-                        Text(helperScriptManager.isInstalled ? "Profile launching enabled" : "Install the helper to open links in selected profiles.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        if !helperScriptManager.isInstalled {
-                            Button("Install Helper…") { _ = helperScriptManager.installScript() }
-                        }
-                    }
                 }
             }
+            .onAppear(perform: refreshDefaultBrowserStatus)
 
             Spacer(minLength: 0)
 
@@ -107,7 +116,24 @@ struct WelcomeView: View {
         let bundleURL = Bundle.main.bundleURL
 
         NSWorkspace.shared.setDefaultApplication(at: bundleURL, toOpenURLsWithScheme: "http") { _ in }
-        NSWorkspace.shared.setDefaultApplication(at: bundleURL, toOpenURLsWithScheme: "https") { _ in }
+        NSWorkspace.shared.setDefaultApplication(at: bundleURL, toOpenURLsWithScheme: "https") { error in
+            DispatchQueue.main.async {
+                if let error {
+                    NSLog("[WelcomeView] Could not set default browser: \(error.localizedDescription)")
+                }
+                refreshDefaultBrowserStatus()
+            }
+        }
+    }
+
+    private func refreshDefaultBrowserStatus() {
+        guard let httpsURL = URL(string: "https://www.apple.com"),
+              let handlerURL = NSWorkspace.shared.urlForApplication(toOpen: httpsURL) else {
+            isDefaultBrowser = false
+            return
+        }
+
+        isDefaultBrowser = Bundle(url: handlerURL)?.bundleIdentifier == Bundle.main.bundleIdentifier
     }
 }
 

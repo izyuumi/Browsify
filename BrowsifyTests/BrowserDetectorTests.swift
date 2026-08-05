@@ -79,6 +79,43 @@ final class BrowserDetectorTests: XCTestCase {
         XCTAssertEqual(result.first?.stableIdentityKey, unreadableApp.canonicalPath)
     }
 
+    func testMergeDeduplicatesBySymlinkResolvedPathWhileKeepingTheLaunchPath() {
+        // Safari is reported at /Applications/Safari.app but resolves into the read-protected
+        // system cryptex; the resolved path identifies it, the reported path launches it.
+        let known = BrowserApplicationCandidate(
+            name: "Safari",
+            bundleIdentifier: nil,
+            canonicalPath: "/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app",
+            launchPath: "/Applications/Safari.app"
+        )
+        let duplicate = BrowserApplicationCandidate(
+            name: "Safari",
+            bundleIdentifier: nil,
+            canonicalPath: "/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app",
+            launchPath: "/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app"
+        )
+
+        let result = BrowserDiscovery.merge(
+            known: [known],
+            dynamic: [duplicate],
+            mainBundleIdentifier: "to.yumi.Browsify",
+            mainBundlePath: "/Applications/Browsify.app"
+        )
+
+        XCTAssertEqual(result, [known])
+        XCTAssertEqual(result.first?.launchPath, "/Applications/Safari.app")
+    }
+
+    func testCandidateLaunchPathDefaultsToCanonicalPath() {
+        let candidate = BrowserApplicationCandidate(
+            name: "Firefox",
+            bundleIdentifier: "org.mozilla.firefox",
+            canonicalPath: "/Applications/Firefox.app"
+        )
+
+        XCTAssertEqual(candidate.launchPath, "/Applications/Firefox.app")
+    }
+
     func testSafariFallbackSuppliesSafariWhenNoApplicationsWereDetected() {
         let safari = BrowserApplicationCandidate(
             name: "Safari",

@@ -27,7 +27,7 @@ xcodebuild -project Browsify.xcodeproj -scheme Browsify clean
 
 The core functionality follows this flow:
 
-1. **URL Interception** (BrowsifyApp.swift:95): App registers as HTTP/HTTPS handler via Info.plist, receives URLs through NSAppleEventManager
+1. **URL Interception** (BrowsifyApp.swift): App registers as HTTP/HTTPS handler via Info.plist, receives URLs through NSAppleEventManager. The handler **must** be installed in `applicationWillFinishLaunching` — a link click cold-launches the app and macOS delivers `kAEGetURL` during launch, so registering any later silently drops the link (this caused an App Review 2.1(a) rejection)
 2. **URL Cleaning** (URLCleaner.swift): Strips tracking parameters (utm_*, fbclid, etc.) if enabled
 3. **Desktop App Routing** (URLHandler.swift:32): Checks if URL matches desktop app patterns (Zoom, Teams, Slack, etc.)
 4. **Rule Matching** (URLHandler.swift:40): RuleEngine evaluates routing rules in list order (top-most rule wins)
@@ -100,9 +100,18 @@ Add entry to DesktopApp.knownApps in DesktopApp.swift:59 with:
 - URL schemes it handles
 - Domain patterns for web-based deep linking
 
+### Sandbox Constraints
+
+The app is sandboxed for the Mac App Store. Two rules follow from prior App Review rejections:
+
+- **Never write executable code outside the app bundle.** A previous build wrote a launch helper script into `~/Library/Application Scripts/` and was rejected under guideline 2.4.5(ii). Don't reintroduce anything like it. (Note that the app cannot clean such a script up afterwards either — the sandbox grants only read access to that folder, so a leftover `open.sh` from a dev build stays until removed by hand.)
+- **Launch browsers via LaunchServices, not stored resolved paths.** `Browser.launchCandidateURLs()` asks `NSWorkspace` for the app by bundle identifier first and falls back to the recorded path. `BrowserApplicationCandidate` keeps `canonicalPath` (symlink-resolved, for dedup) separate from `launchPath` (as reported, for launching) because resolved paths can point into read-protected locations such as the system cryptex.
+
 ### Testing URL Routing
 
-There is no in-app test-picker menu item. To exercise routing without making Browsify the system default, send a URL straight to the running app — this delivers the same `kAEGetURL` Apple Event the system sends when Browsify *is* the default:
+The menu bar icon has an **"Open a Link…"** item (`AppDelegate.openTestLink`) that routes a URL through the full pipeline without Browsify being the system default. Use it for quick checks; it is also step 1 of the Welcome window and is what App Review is directed to.
+
+To test from outside the app, send a URL straight to it — this delivers the same `kAEGetURL` Apple Event the system sends when Browsify *is* the default:
 
 ```bash
 open -b to.yumi.Browsify https://example.com
