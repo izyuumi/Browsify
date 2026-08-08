@@ -53,6 +53,16 @@
                ReferencedContainer = "container:Browsify.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "B20000000000000000000005"
+               BuildableName = "BrowsifyUITests.xctest"
+               BlueprintName = "BrowsifyUITests"
+               ReferencedContainer = "container:Browsify.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

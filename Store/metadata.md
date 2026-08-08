@@ -1,4 +1,4 @@
-# App Store Metadata — Browsify 1.0
+# App Store Metadata — Browsify 1.0.1
 
 ## Name (30 chars max)
 
@@ -15,48 +15,19 @@ Stop pasting links between browsers. Browsify sends every link to the right brow
 
 ## Description (4000 chars max)
 
-Browsify is a smart default browser for your Mac. Set it once, and every link you click goes exactly where you want it — the right browser, the right profile, or the right app.
+Browsify helps you use more than one browser on your Mac without constantly copying and pasting links.
 
-WHY BROWSIFY
+Set Browsify as your default browser, then choose what happens when you open a link. You can pick a browser each time, choose a regular default, or make rules for specific sites and apps.
 
-If you use more than one browser — Safari for personal, Chrome for work, Firefox for testing — macOS makes you pick a single default. Browsify removes that limit. It quietly lives in your menu bar, catches every link you click, and routes it by rules you control.
+For example, work links can open in Chrome, personal links in Safari, testing links in Firefox, and meeting links directly in Zoom or Teams. Rules can match a domain, part of a URL, or the app the link came from.
 
-ROUTING RULES
+Browsify can also open links in a specific Chrome, Brave, Edge, Vivaldi, or Firefox profile. Profile access is optional and requested only when you use it.
 
-• Route by domain, with wildcard support (*.example.com)
-• Route by URL pattern (github.com/work/*)
-• Route by source app — links from Slack open differently than links from Mail
-• Rules evaluate top to bottom; drag to reorder, first match wins
+The menu bar keeps everything close by. You can reorder or hide browsers, add custom browsers, test routing with Open a Link, and optionally remove common tracking parameters before a page opens.
 
-BROWSER PROFILES
+Browsify has no accounts, analytics, or online service. Settings stay on your Mac.
 
-Work and personal Chrome profiles? Browsify can route links straight into a specific profile of Chrome, Brave, Edge, Vivaldi, or Firefox. Profile detection is optional and permission-based — you grant read access explicitly, and Browsify guarantees the link opens in the profile you chose, even when the browser is already running.
-
-STRAIGHT TO APPS
-
-Zoom, Teams, Slack, and other meeting or chat links can skip the browser entirely and open in their desktop apps.
-
-INTERACTIVE PICKER
-
-No rule matched? A minimal picker appears at your cursor. Hit 1, 2, 3… to choose a browser and keep moving. Your hands never leave the keyboard.
-
-CLEANER LINKS
-
-Optionally strip tracking parameters (utm_*, fbclid, and friends) from every URL before it opens.
-
-PRIVATE BY DESIGN
-
-Browsify collects no data. No analytics, no network requests, no accounts. Everything stays on your Mac. It runs sandboxed, and every permission is explicit and optional.
-
-DETAILS
-
-• Lives in the menu bar — no Dock icon, no clutter
-• Auto-detects installed browsers, including custom ones
-• Hide browsers you never use; reorder the rest
-• Test your rules any time with "Open a Link…" in the menu bar
-• Open source — inspect the code on GitHub
-
-Requires macOS 14.0 or later. To use Browsify, set it as your default browser in System Settings — the welcome screen walks you through it.
+Requires macOS 14.0 or later.
 
 ## Keywords (100 chars max)
 

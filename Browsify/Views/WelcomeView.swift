@@ -98,8 +98,6 @@ struct WelcomeView: View {
             }
             .onAppear(perform: refreshDefaultBrowserStatus)
 
-            Spacer(minLength: 0)
-
             HStack {
                 Spacer()
 
@@ -109,7 +107,11 @@ struct WelcomeView: View {
             }
         }
         .padding(32)
-        .frame(width: 480, height: 520)
+        // minHeight, not a fixed height: step 3 grows a row per profile-capable browser,
+        // and a fixed 520 clipped the Done button once three or more were installed.
+        .frame(width: 480)
+        .frame(minHeight: 520)
+        .accessibilityIdentifier("welcome-screen")
     }
 
     private func setAsDefaultBrowser() {

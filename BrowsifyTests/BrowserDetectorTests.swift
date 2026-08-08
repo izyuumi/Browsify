@@ -79,6 +79,28 @@ final class BrowserDetectorTests: XCTestCase {
         XCTAssertEqual(result.first?.stableIdentityKey, unreadableApp.canonicalPath)
     }
 
+    func testMergeDropsUnreadableUpdateCopyWithSameBrowserName() {
+        let installed = BrowserApplicationCandidate(
+            name: "Brave Browser",
+            bundleIdentifier: "com.brave.Browser",
+            canonicalPath: "/Applications/Brave Browser.app"
+        )
+        let cachedUpdate = BrowserApplicationCandidate(
+            name: "Brave Browser",
+            bundleIdentifier: nil,
+            canonicalPath: "/Users/example/Library/Caches/Brave Browser.app"
+        )
+
+        let result = BrowserDiscovery.merge(
+            known: [installed],
+            dynamic: [cachedUpdate],
+            mainBundleIdentifier: "to.yumi.Browsify",
+            mainBundlePath: "/Applications/Browsify.app"
+        )
+
+        XCTAssertEqual(result, [installed])
+    }
+
     func testMergeDeduplicatesBySymlinkResolvedPathWhileKeepingTheLaunchPath() {
         // Safari is reported at /Applications/Safari.app but resolves into the read-protected
         // system cryptex; the resolved path identifies it, the reported path launches it.

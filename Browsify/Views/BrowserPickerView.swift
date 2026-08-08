@@ -73,6 +73,7 @@ struct BrowserPickerView: View {
         )
         .shadow(color: Color.black.opacity(0.2), radius: 16, x: 0, y: 8)
         .allowsHitTesting(true)
+        .accessibilityIdentifier("browser-picker-screen")
         .onAppear {
             // Setup keyboard shortcuts for numbers 1-9 and ESC
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in

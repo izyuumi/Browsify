@@ -38,6 +38,7 @@ enum BrowserDiscovery {
         var applications: [BrowserApplicationCandidate] = []
         var bundleIdentifiers = Set<String>()
         var paths = Set<String>()
+        var names = Set<String>()
 
         for application in known + dynamic {
             if (mainBundleIdentifier != nil && application.bundleIdentifier == mainBundleIdentifier) ||
@@ -55,8 +56,16 @@ enum BrowserDiscovery {
                 continue
             }
 
+            // Sandboxing can make a Sparkle-downloaded update unreadable even though
+            // LaunchServices reports it. Its bundle identifier is then nil, so use the
+            // matching installed browser name to avoid showing the cached copy twice.
+            if application.bundleIdentifier == nil, names.contains(application.name) {
+                continue
+            }
+
             applications.append(application)
             paths.insert(application.canonicalPath)
+            names.insert(application.name)
             if let bundleIdentifier = application.bundleIdentifier {
                 bundleIdentifiers.insert(bundleIdentifier)
             }

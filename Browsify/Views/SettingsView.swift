@@ -7,24 +7,47 @@ import SwiftUI
 import UniformTypeIdentifiers
 import AppKit
 
+enum SettingsTab: Hashable {
+    case preferences
+    case browsers
+    case rules
+    case profiles
+    case about
+}
+
 struct SettingsView: View {
     @ObservedObject var ruleEngine: RuleEngine
     @ObservedObject var browserDetector: BrowserDetector
-    @ObservedObject var profileManager: ProfileManager = ProfileManager.shared
+    @ObservedObject var profileManager: ProfileManager
 
     @State private var stripTrackingParameters = UserDefaults.standard.bool(forKey: "stripTrackingParameters")
+    @State private var selection: SettingsTab
+
+    init(
+        ruleEngine: RuleEngine,
+        browserDetector: BrowserDetector,
+        profileManager: ProfileManager = .shared,
+        initialTab: SettingsTab = .preferences
+    ) {
+        self.ruleEngine = ruleEngine
+        self.browserDetector = browserDetector
+        self.profileManager = profileManager
+        _selection = State(initialValue: initialTab)
+    }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selection) {
             PreferencesView(stripTrackingParameters: $stripTrackingParameters)
                 .tabItem {
                     Label("Preferences", systemImage: "gear")
                 }
+                .tag(SettingsTab.preferences)
 
             BrowsersListView(browserDetector: browserDetector)
                 .tabItem {
                     Label("Browsers", systemImage: "app.badge")
                 }
+                .tag(SettingsTab.browsers)
 
             RulesListView(
                 ruleEngine: ruleEngine,
@@ -34,6 +57,7 @@ struct SettingsView: View {
             .tabItem {
                 Label("Rules", systemImage: "list.bullet")
             }
+            .tag(SettingsTab.rules)
 
             ProfilesListView(
                 profileManager: profileManager,
@@ -42,13 +66,16 @@ struct SettingsView: View {
                 .tabItem {
                     Label("Profiles", systemImage: "person.2")
                 }
+                .tag(SettingsTab.profiles)
 
             AboutView()
                 .tabItem {
                     Label("About", systemImage: "info.circle")
                 }
+                .tag(SettingsTab.about)
         }
         .frame(width: 700, height: 500)
+        .accessibilityIdentifier("settings-screen")
     }
 }
 
@@ -85,6 +112,7 @@ struct PreferencesView: View {
         }
         .formStyle(.grouped)
         .padding()
+        .accessibilityIdentifier("preferences-screen")
     }
 
     private func setAsDefaultBrowser() {
@@ -172,6 +200,7 @@ struct RulesListView: View {
                 rule: rule
             )
         }
+        .accessibilityIdentifier("rules-screen")
     }
 }
 
@@ -426,6 +455,7 @@ struct BrowsersListView: View {
                 browser: browser
             )
         }
+        .accessibilityIdentifier("browsers-screen")
     }
 
     private func moveBrowsers(from source: IndexSet, to destination: Int) {
@@ -604,6 +634,7 @@ struct BrowserEditorView: View {
             .padding()
         }
         .frame(width: 500, height: 300)
+        .accessibilityIdentifier("browser-editor-screen")
     }
 
     private func selectBrowserApp() {
@@ -673,6 +704,12 @@ struct ProfilesListView: View {
     @ObservedObject var ruleEngine: RuleEngine
     @State private var showingAddProfile = false
     @State private var newProfileName = ""
+
+    init(profileManager: ProfileManager, ruleEngine: RuleEngine, showingAddProfile: Bool = false) {
+        self.profileManager = profileManager
+        self.ruleEngine = ruleEngine
+        _showingAddProfile = State(initialValue: showingAddProfile)
+    }
 
     var body: some View {
         VStack {
@@ -756,6 +793,7 @@ struct ProfilesListView: View {
             }
             .padding()
         }
+        .accessibilityIdentifier("profiles-screen")
     }
 }
 

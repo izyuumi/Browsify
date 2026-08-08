@@ -105,11 +105,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--export-ui-screens") {
+            DispatchQueue.main.async {
+                do {
+                    let directory = try UIScreenshotExporter.export()
+                    print("BROWSIFY_UI_SCREENSHOT_DIR=\(directory.path)")
+                    fflush(stdout)
+                    NSApp.terminate(nil)
+                } catch {
+                    fputs("BROWSIFY_UI_SCREENSHOT_ERROR=\(error)\n", stderr)
+                    fflush(stderr)
+                    NSApp.terminate(nil)
+                }
+            }
+        } else if let uiTestScreen = Self.uiTestScreen {
+            DispatchQueue.main.async { [weak self] in
+                self?.showUITestScreen(uiTestScreen)
+            }
+        } else if !UserDefaults.standard.bool(forKey: "hasCompletedWelcome") {
+            DispatchQueue.main.async { [weak self] in
+                self?.showWelcome()
+            }
+        }
+        #else
         if !UserDefaults.standard.bool(forKey: "hasCompletedWelcome") {
             DispatchQueue.main.async { [weak self] in
                 self?.showWelcome()
             }
         }
+        #endif
     }
 
     private func setupURLHandling() {
@@ -250,6 +275,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             width: (panel.screen ?? NSScreen.main)?.visibleFrame.width ?? 1_000,
             height: (panel.screen ?? NSScreen.main)?.visibleFrame.height ?? 800
         )
+        panel.identifier = NSUserInterfaceItemIdentifier("browser-picker-window")
         let contentSize = hostingController.sizeThatFits(in: maximumSize)
         guard contentSize.width > 0, contentSize.height > 0 else { return }
 
@@ -314,10 +340,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
         window.title = "Settings"
+        window.identifier = NSUserInterfaceItemIdentifier("settings-window")
         window.isReleasedWhenClosed = false
         window.center()
         window.contentViewController = hostingController
+        #if DEBUG
+        if Self.uiTestScreen == nil {
+            window.setFrameAutosaveName("BrowsifySettingsWindow")
+        }
+        #else
         window.setFrameAutosaveName("BrowsifySettingsWindow")
+        #endif
 
         settingsWindow = window
 
@@ -363,15 +396,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
         window.title = "Welcome to Browsify"
+        window.identifier = NSUserInterfaceItemIdentifier("welcome-window")
         window.isReleasedWhenClosed = false
         window.center()
-        window.contentViewController = NSHostingController(
+        let controller = NSHostingController(
             rootView: WelcomeView(
                 browserDetector: URLHandler.shared.getBrowserDetector()
             ) { [weak window] in
                 window?.close()
             }
         )
+        window.contentViewController = controller
+
+        // SwiftUI's minimum height does not resize an already-created AppKit window.
+        // Measure the actual onboarding content so profile rows cannot cover the footer.
+        let fittedSize = controller.sizeThatFits(
+            in: NSSize(width: 480, height: 2_000)
+        )
+        window.setContentSize(
+            NSSize(width: 480, height: max(520, fittedSize.height))
+        )
+        window.center()
 
         welcomeWindow = window
 
@@ -404,16 +449,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Routes a link through the full pipeline without Browsify being the system default,
     /// so routing can be exercised (and demonstrated) before changing the default browser.
     @objc func openTestLink() {
-        let alert = NSAlert()
-        alert.messageText = "Open a Link"
-        alert.informativeText = "Browsify will route this link exactly as it would a link clicked in another app."
-        alert.addButton(withTitle: "Open")
-        alert.addButton(withTitle: "Cancel")
-
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
-        field.stringValue = "https://www.apple.com"
-        field.placeholderString = "https://www.apple.com"
-        alert.accessoryView = field
+        let (alert, field) = makeOpenLinkAlert()
 
         NSApp.activate(ignoringOtherApps: true)
         alert.window.initialFirstResponder = field
@@ -425,10 +461,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let normalized = candidate.contains("://") ? candidate : "https://\(candidate)"
 
         guard let url = URL(string: normalized), url.host != nil else {
-            let error = NSAlert()
-            error.messageText = "That doesn’t look like a web address"
-            error.informativeText = "Enter an address such as https://www.apple.com."
-            error.addButton(withTitle: "OK")
+            let error = makeInvalidAddressAlert()
             error.runModal()
             return
         }
@@ -436,9 +469,62 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         URLHandler.shared.handleURL(url, sourceApp: Bundle.main.bundleIdentifier)
     }
 
+    func makeOpenLinkAlert() -> (NSAlert, NSTextField) {
+        let alert = NSAlert()
+        alert.messageText = "Open a Link"
+        alert.informativeText = "Browsify will route this link exactly as it would a link clicked in another app."
+        alert.addButton(withTitle: "Open")
+        alert.addButton(withTitle: "Cancel")
+
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        field.identifier = NSUserInterfaceItemIdentifier("ui-test-url-field")
+        field.stringValue = "https://www.apple.com"
+        field.placeholderString = "https://www.apple.com"
+        alert.accessoryView = field
+        return (alert, field)
+    }
+
+    func makeInvalidAddressAlert() -> NSAlert {
+        let alert = NSAlert()
+        alert.messageText = "That doesn’t look like a web address"
+        alert.informativeText = "Enter an address such as https://www.apple.com."
+        alert.addButton(withTitle: "OK")
+        return alert
+    }
+
     @objc func quit() {
         NSApplication.shared.terminate(self)
     }
+
+    #if DEBUG
+    private static var uiTestScreen: String? {
+        let prefix = "--ui-test-screen="
+        return ProcessInfo.processInfo.arguments
+            .first(where: { $0.hasPrefix(prefix) })?
+            .dropFirst(prefix.count)
+            .description
+    }
+
+    private func showUITestScreen(_ screen: String) {
+        switch screen {
+        case "menu":
+            statusItem?.button?.performClick(nil)
+        case "welcome":
+            showWelcome()
+        case "link-alert":
+            openTestLink()
+        case "picker":
+            let handler = URLHandler.shared
+            handler.pendingURL = URL(string: "https://browsify-ui-test.invalid/a/long/path?query=screenshot")
+            handler.sourceApplication = Bundle.main.bundleIdentifier
+            handler.showBrowserPicker = true
+        case "settings":
+            showSettings()
+        default:
+            assertionFailure("Unknown UI-test screen: \(screen)")
+        }
+    }
+    #endif
 
     @objc private func selectNoProfile(_ sender: NSMenuItem) {
         ProfileManager.shared.setActiveProfile(nil)

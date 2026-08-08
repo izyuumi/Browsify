@@ -169,7 +169,10 @@ struct RuleEditorView: View {
             }
             .padding()
         }
-        .frame(width: 500, height: profileManager.profiles.isEmpty ? 550 : 650)
+        // Keep the sheet inside the default 500-point Settings content area.
+        // Form supplies scrolling when profile rows need more space.
+        .frame(width: 500, height: 480)
+        .accessibilityIdentifier("rule-editor-screen")
         .onAppear {
             browserDetector.detectBrowsers()
         }
