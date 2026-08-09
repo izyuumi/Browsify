@@ -50,6 +50,8 @@ final class BrowsifyUITests: XCTestCase {
         XCTAssertTrue(done.waitForExistence(timeout: 2))
         XCTAssertTrue(done.isHittable)
         XCTAssertTrue(window.frame.contains(done.frame), "Done button is clipped outside welcome window")
+        XCTAssertTrue(app.buttons["Test Browsify with a Link…"].exists)
+        XCTAssertTrue(app.staticTexts["Enter any web address to see where Browsify opens it."].exists)
         attach("01-welcome", element: window)
     }
 

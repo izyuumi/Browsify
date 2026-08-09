@@ -45,15 +45,15 @@ struct WelcomeView: View {
 
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("1. Try it now")
+                    Text("1. See how Browsify works")
                         .font(.headline)
 
-                    HStack {
-                        Button("Open a Link…") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Button("Test Browsify with a Link…") {
                             (NSApp.delegate as? AppDelegate)?.openTestLink()
                         }
 
-                        Text("Routes a link just like a click in another app.")
+                        Text("Enter any web address to see where Browsify opens it.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -64,16 +64,14 @@ struct WelcomeView: View {
                         .font(.headline)
 
                     HStack {
-                        Button("Set as Default Browser") {
-                            setAsDefaultBrowser()
-                        }
-                        .disabled(isDefaultBrowser)
-
                         if isDefaultBrowser {
                             Label("Browsify is your default browser", systemImage: "checkmark.circle.fill")
-                                .font(.caption)
                                 .foregroundColor(.green)
                         } else {
+                            Button("Set as Default Browser") {
+                                setAsDefaultBrowser()
+                            }
+
                             Text("macOS will ask for confirmation.")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -97,6 +95,9 @@ struct WelcomeView: View {
                 }
             }
             .onAppear(perform: refreshDefaultBrowserStatus)
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                refreshDefaultBrowserStatus()
+            }
 
             HStack {
                 Spacer()
