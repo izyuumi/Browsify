@@ -85,7 +85,7 @@ struct BrowserPickerView: View {
 
                 let disallowedModifiers: NSEvent.ModifierFlags = [.command, .control, .option]
                 guard event.modifierFlags.intersection(disallowedModifiers).isEmpty,
-                      let characters = event.charactersIgnoringModifiers,
+                      let characters = event.characters,
                       let browser = self.browserDetector.browser(forPickerKey: characters) else {
                     return event
                 }
@@ -125,10 +125,13 @@ struct BrowserIcon: View {
         }) {
             VStack(spacing: 6) {
                 // Shortcut above icon
-                Text(shortcut?.uppercased() ?? "–")
+                Text(shortcut.map { BrowserPickerShortcut.displayKey($0) } ?? "–")
                     .font(.system(.caption, design: .rounded))
                     .foregroundColor(isRemembered ? .accentColor : .secondary)
                     .fontWeight(.semibold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(width: 64)
 
                 // Browser icon with optional remembered-browser ring
                 ZStack {

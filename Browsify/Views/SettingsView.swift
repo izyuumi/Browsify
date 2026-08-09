@@ -504,6 +504,8 @@ struct BrowserRowView: View {
     let editAction: () -> Void
 
     @State private var shortcutError: String?
+    @State private var isRecordingShortcut = false
+    @FocusState private var isShortcutFocused: Bool
 
     var isCustom: Bool {
         browserDetector.isCustomBrowser(browser)
@@ -511,6 +513,14 @@ struct BrowserRowView: View {
 
     var isHidden: Bool {
         browserDetector.isHidden(browser)
+    }
+
+    var pickerShortcutDisplay: String {
+        browserDetector.customPickerShortcut(for: browser)
+            .map { BrowserPickerShortcut.displayKey($0) }
+            ?? browserDetector.defaultPickerShortcut(for: browser)
+                .map { BrowserPickerShortcut.displayKey($0) }
+            ?? "—"
     }
 
     var body: some View {
@@ -567,21 +577,75 @@ struct BrowserRowView: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
 
-                TextField(
-                    browserDetector.defaultPickerShortcut(for: browser) ?? "—",
-                    text: Binding(
-                        get: { browserDetector.customPickerShortcut(for: browser)?.uppercased() ?? "" },
-                        set: { newValue in
-                            shortcutError = browserDetector.setCustomPickerShortcut(newValue, for: browser)
-                        }
+                Button {
+                    isRecordingShortcut = true
+                    isShortcutFocused = true
+                } label: {
+                    Text(
+                        isRecordingShortcut
+                            ? "Press key…"
+                            : pickerShortcutDisplay
                     )
-                )
-                    .frame(width: 36)
-                    .multilineTextAlignment(.center)
-                    .textFieldStyle(.roundedBorder)
+                }
+                    .buttonStyle(.plain)
+                    .frame(minWidth: 36)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(.background, in: RoundedRectangle(cornerRadius: 5))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(isShortcutFocused ? Color.accentColor : Color.secondary.opacity(0.35))
+                    }
+                    .contentShape(Rectangle())
+                    .focused($isShortcutFocused)
+                    .onKeyPress(phases: .down) { press in
+                        guard isRecordingShortcut else { return .ignored }
+
+                        if press.key == .escape {
+                            shortcutError = nil
+                            isRecordingShortcut = false
+                            isShortcutFocused = false
+                            return .handled
+                        }
+
+                        let disallowedModifiers: EventModifiers = [.command, .control, .option]
+                        guard press.modifiers.intersection(disallowedModifiers).isEmpty else {
+                            return .ignored
+                        }
+
+                        let error = browserDetector.setCustomPickerShortcut(
+                            press.characters.isEmpty ? String(press.key.character) : press.characters,
+                            for: browser
+                        )
+                        shortcutError = error
+                        if error == nil {
+                            isRecordingShortcut = false
+                            isShortcutFocused = false
+                        }
+                        return .handled
+                    }
+                    .onChange(of: isShortcutFocused) { _, focused in
+                        if !focused {
+                            isRecordingShortcut = false
+                        }
+                    }
                     .disabled(isHidden)
-                    .help("Picker key: one letter (A–Z). Clear to use numeric default.")
+                    .help("Click, then press any key. Escape is reserved.")
                     .accessibilityLabel("Picker key for \(browser.name)")
+                    .accessibilityValue(isRecordingShortcut ? "Press key" : pickerShortcutDisplay)
+                    .accessibilityHint("Click, then press a key to assign it")
+
+                if browserDetector.customPickerShortcut(for: browser) != nil {
+                    Button {
+                        shortcutError = browserDetector.setCustomPickerShortcut("", for: browser)
+                    } label: {
+                        Image(systemName: "arrow.uturn.backward.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isHidden)
+                    .help("Restore numeric default")
+                    .accessibilityLabel("Restore default picker key for \(browser.name)")
+                }
             }
 
             // Hide/Unhide button for all browsers

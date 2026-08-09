@@ -162,7 +162,10 @@ class BrowserDetector: ObservableObject {
         BrowserPickerShortcut.effectiveKey(
             browserID: browser.id,
             index: index,
-            custom: browserPickerShortcuts
+            custom: BrowserPickerShortcut.pruned(
+                browserPickerShortcuts,
+                keeping: Set(browsers.map(\.id))
+            )
         )
     }
 
@@ -171,9 +174,11 @@ class BrowserDetector: ObservableObject {
     }
 
     func defaultPickerShortcut(for browser: Browser) -> String? {
-        browsers.firstIndex(where: { $0.id == browser.id }).flatMap {
-            BrowserPickerShortcut.defaultKey(at: $0)
+        guard browserPickerShortcuts[browser.id.uuidString] == nil,
+              let index = browsers.firstIndex(where: { $0.id == browser.id }) else {
+            return nil
         }
+        return pickerShortcut(for: browser, at: index)
     }
 
     @discardableResult
@@ -185,7 +190,7 @@ class BrowserDetector: ObservableObject {
         }
 
         guard let key = BrowserPickerShortcut.normalizedCustomKey(rawValue) else {
-            return "Use one letter (A–Z)."
+            return "Press one key. Escape is reserved."
         }
 
         guard BrowserPickerShortcut.isAvailable(
