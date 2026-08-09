@@ -99,9 +99,7 @@ final class BrowsifyUITests: XCTestCase {
 
         let window = app.windows["Settings"]
         XCTAssertTrue(window.waitForExistence(timeout: 5))
-        let menuBarToggle = app.switches["Show Browsify in menu bar"].firstMatch.exists
-            ? app.switches["Show Browsify in menu bar"].firstMatch
-            : app.checkBoxes["Show Browsify in menu bar"].firstMatch
+        let menuBarToggle = app.descendants(matching: .any)["menu-bar-toggle"].firstMatch
         XCTAssertTrue(menuBarToggle.waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["If hidden, reopen Browsify from Spotlight or Applications to show Settings."].exists)
         XCTAssertTrue(app.buttons["Set as Default Browser"].waitForExistence(timeout: 2))

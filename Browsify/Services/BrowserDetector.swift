@@ -85,6 +85,7 @@ enum BrowserDiscovery {
 class BrowserDetector: ObservableObject {
     @Published var browsers: [Browser] = []
     @Published var allBrowsers: [Browser] = [] // Includes hidden browsers
+    @Published private(set) var browserPickerShortcuts = BrowserPickerShortcut.load()
 
     private let customBrowsersKey = "customBrowsers"
     private let hiddenBrowsersKey = "hiddenBrowsers"
@@ -122,6 +123,8 @@ class BrowserDetector: ObservableObject {
         var customBrowsers = loadCustomBrowsers()
         customBrowsers.removeAll { $0.id == browser.id }
         saveCustomBrowsers(customBrowsers)
+        browserPickerShortcuts.removeValue(forKey: browser.id.uuidString)
+        BrowserPickerShortcut.save(browserPickerShortcuts)
         detectBrowsers()
     }
 
@@ -153,6 +156,57 @@ class BrowserDetector: ObservableObject {
         let order = browsers.map { $0.id }
         saveBrowserOrder(order)
         updateBrowserVisibility()
+    }
+
+    func pickerShortcut(for browser: Browser, at index: Int) -> String? {
+        BrowserPickerShortcut.effectiveKey(
+            browserID: browser.id,
+            index: index,
+            custom: browserPickerShortcuts
+        )
+    }
+
+    func customPickerShortcut(for browser: Browser) -> String? {
+        browserPickerShortcuts[browser.id.uuidString]
+    }
+
+    func defaultPickerShortcut(for browser: Browser) -> String? {
+        browsers.firstIndex(where: { $0.id == browser.id }).flatMap {
+            BrowserPickerShortcut.defaultKey(at: $0)
+        }
+    }
+
+    @discardableResult
+    func setCustomPickerShortcut(_ rawValue: String, for browser: Browser) -> String? {
+        if rawValue.isEmpty {
+            browserPickerShortcuts.removeValue(forKey: browser.id.uuidString)
+            BrowserPickerShortcut.save(browserPickerShortcuts)
+            return nil
+        }
+
+        guard let key = BrowserPickerShortcut.normalizedCustomKey(rawValue) else {
+            return "Use one letter (A–Z)."
+        }
+
+        guard BrowserPickerShortcut.isAvailable(
+            key,
+            for: browser.id,
+            custom: browserPickerShortcuts
+        ) else {
+            return "That key is already assigned."
+        }
+
+        browserPickerShortcuts[browser.id.uuidString] = key
+        BrowserPickerShortcut.save(browserPickerShortcuts)
+        return nil
+    }
+
+    func browser(forPickerKey rawValue: String) -> Browser? {
+        guard let key = BrowserPickerShortcut.normalizedEventKey(rawValue) else { return nil }
+
+        return browsers.enumerated().first { index, browser in
+            pickerShortcut(for: browser, at: index)?.caseInsensitiveCompare(key) == .orderedSame
+        }?.element
     }
 
     private func loadCustomBrowsers() -> [Browser] {
@@ -267,6 +321,15 @@ class BrowserDetector: ObservableObject {
         // Add custom browsers (they have their own stable UUIDs)
         let customBrowsers = loadCustomBrowsers()
         detectedBrowsers.append(contentsOf: customBrowsers)
+
+        let prunedShortcuts = BrowserPickerShortcut.pruned(
+            browserPickerShortcuts,
+            keeping: Set(detectedBrowsers.map(\.id))
+        )
+        if prunedShortcuts != browserPickerShortcuts {
+            browserPickerShortcuts = prunedShortcuts
+            BrowserPickerShortcut.save(prunedShortcuts)
+        }
 
         // Save the updated UUID map
         saveBrowserUUIDMap(uuidMap)

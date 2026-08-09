@@ -98,6 +98,7 @@ struct PreferencesView: View {
 
             Section("Menu Bar") {
                 Toggle("Show Browsify in menu bar", isOn: $showMenuBarIcon)
+                    .accessibilityIdentifier("menu-bar-toggle")
                     .onChange(of: showMenuBarIcon) { _, isVisible in
                         (NSApp.delegate as? AppDelegate)?.setMenuBarIconVisible(isVisible)
                     }
@@ -502,6 +503,8 @@ struct BrowserRowView: View {
     @ObservedObject var browserDetector: BrowserDetector
     let editAction: () -> Void
 
+    @State private var shortcutError: String?
+
     var isCustom: Bool {
         browserDetector.isCustomBrowser(browser)
     }
@@ -549,9 +552,37 @@ struct BrowserRowView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .opacity(isHidden ? 0.5 : 1.0)
+
+                if let shortcutError {
+                    Text(shortcutError)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
             }
 
             Spacer()
+
+            VStack(spacing: 2) {
+                Text("Picker key")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
+                TextField(
+                    browserDetector.defaultPickerShortcut(for: browser) ?? "—",
+                    text: Binding(
+                        get: { browserDetector.customPickerShortcut(for: browser)?.uppercased() ?? "" },
+                        set: { newValue in
+                            shortcutError = browserDetector.setCustomPickerShortcut(newValue, for: browser)
+                        }
+                    )
+                )
+                    .frame(width: 36)
+                    .multilineTextAlignment(.center)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(isHidden)
+                    .help("Picker key: one letter (A–Z). Clear to use numeric default.")
+                    .accessibilityLabel("Picker key for \(browser.name)")
+            }
 
             // Hide/Unhide button for all browsers
             Button(action: {

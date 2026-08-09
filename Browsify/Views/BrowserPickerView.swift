@@ -46,13 +46,13 @@ struct BrowserPickerView: View {
                     }
                 }
             } else {
-                // Browser list with numbers
+                // Browser list with picker shortcuts
                 let remembered = rememberedBundleId
                 HStack(spacing: 12) {
                     ForEach(Array(browserDetector.browsers.enumerated()), id: \.element.id) { index, browser in
                         BrowserIcon(
                             browser: browser,
-                            number: index + 1,
+                            shortcut: browserDetector.pickerShortcut(for: browser, at: index),
                             isRemembered: browser.identityKey == remembered
                         ) {
                             openWithBrowser(browser)
@@ -75,7 +75,7 @@ struct BrowserPickerView: View {
         .allowsHitTesting(true)
         .accessibilityIdentifier("browser-picker-screen")
         .onAppear {
-            // Setup keyboard shortcuts for numbers 1-9 and ESC
+            // Setup keyboard shortcuts and ESC
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 // Check for ESC key
                 if event.keyCode == 53 { // ESC key code
@@ -83,16 +83,13 @@ struct BrowserPickerView: View {
                     return nil
                 }
 
-                // Check for number keys 1-9
-                guard let characters = event.charactersIgnoringModifiers,
-                      let char = characters.first,
-                      char.isNumber,
-                      let number = Int(String(char)),
-                      number >= 1 && number <= self.browserDetector.browsers.count else {
+                let disallowedModifiers: NSEvent.ModifierFlags = [.command, .control, .option]
+                guard event.modifierFlags.intersection(disallowedModifiers).isEmpty,
+                      let characters = event.charactersIgnoringModifiers,
+                      let browser = self.browserDetector.browser(forPickerKey: characters) else {
                     return event
                 }
 
-                let browser = self.browserDetector.browsers[number - 1]
                 self.openWithBrowser(browser)
                 return nil // Consume the event
             }
@@ -114,7 +111,7 @@ struct BrowserPickerView: View {
 
 struct BrowserIcon: View {
     let browser: Browser
-    let number: Int
+    let shortcut: String?
     /// Whether this browser was the last one used for the current URL's domain.
     var isRemembered: Bool = false
     let action: () -> Void
@@ -127,8 +124,8 @@ struct BrowserIcon: View {
             action()
         }) {
             VStack(spacing: 6) {
-                // Number above icon
-                Text("\(number)")
+                // Shortcut above icon
+                Text(shortcut?.uppercased() ?? "–")
                     .font(.system(.caption, design: .rounded))
                     .foregroundColor(isRemembered ? .accentColor : .secondary)
                     .fontWeight(.semibold)

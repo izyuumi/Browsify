@@ -1,4 +1,4 @@
-# App Store Metadata — Browsify 1.0.1
+# App Store Metadata — Browsify 1.0.2
 
 ## Name (30 chars max)
 
@@ -23,7 +23,7 @@ For example, work links can open in Chrome, personal links in Safari, testing li
 
 Browsify can also open links in a specific Chrome, Brave, Edge, Vivaldi, or Firefox profile. Profile access is optional and requested only when you use it.
 
-The menu bar keeps everything close by. You can reorder or hide browsers, add custom browsers, test routing with Open a Link, and optionally remove common tracking parameters before a page opens.
+You can reorder or hide browsers, assign a custom picker key to each browser, add custom browsers, test routing with a link, hide Browsify's menu bar icon, and optionally remove common tracking parameters before a page opens.
 
 Browsify has no accounts, analytics, or online service. Settings stay on your Mac.
 
@@ -50,23 +50,22 @@ Secondary (optional): Utilities
 
 ## Pricing
 
-Paid up front: USD 4.99 base price (Apple-suggested equivalents in all other territories, e.g. ¥700 JPY).
+Paid up front: USD 4.99 base price with Apple-suggested equivalents in other territories.
+
+## What's New
+
+Customize picker keyboard shortcuts for each browser. Number keys remain the default. This update also improves onboarding and lets you hide Browsify's menu bar icon.
 
 ## Review Notes (for App Review)
 
 Browsify is a default-browser utility (same category as long-approved apps like Velja). It never displays web content itself — it receives a clicked http/https link and hands it off to a real browser or app, chosen by the user's rules.
 
-FIXES IN THIS BUILD, addressing the August 3 review of build 3:
-
-- Guideline 2.1(a) — the reported bug is fixed and its cause identified. The previous build installed its URL event handler after launch had finished. When a link click launched Browsify (the normal case, since a menu bar utility is usually not already running), macOS delivered the link during launch and it was discarded, so no browser opened and no picker appeared. The handler is now installed in applicationWillFinishLaunching, before the event is delivered. Verified by cold-launching a link with the app not running: the picker appears and the chosen browser opens.
-- Guideline 2.4.5(ii) — removed. Build 3 offered, through an NSOpenPanel, to write a small shell script into the app's own Application Scripts folder so browsers could be launched with profile arguments. That code and the UI that offered it are gone. This build writes no code anywhere, ships no scripts or helper executables (the bundle contains only the main binary and its resources), and links are launched entirely through NSWorkspace.
-
-Browsify can now be exercised WITHOUT changing the default browser: choose "Open a Link…" from the menu bar icon (also offered as step 1 of the Welcome window). It routes the link through exactly the same path as a link clicked in another app.
+Browsify can be exercised without changing the default browser: choose "Test Browsify with a Link…" from the menu bar icon or Welcome window. It routes the link through the same path as a link clicked in another app.
 
 To test (about one minute):
 
 1. Launch Browsify. A Welcome window appears and an icon is added to the menu bar. There is no Dock icon by design (LSUIElement) — the menu bar icon is the app's interface.
-2. Fastest check — in the Welcome window click "Open a Link…" (or pick it from the menu bar icon), accept the pre-filled https://www.apple.com, and click Open. Browsify's picker panel appears listing installed browsers; click one, or press 1, 2, 3…, and the link opens in that browser.
+2. Fastest check — in the Welcome window click "Test Browsify with a Link…" (or pick it from the menu bar icon), accept the pre-filled https://www.apple.com, and click Open. Browsify's picker panel appears listing installed browsers; click one or press its displayed shortcut. Number keys are the defaults, and custom A–Z keys can be assigned in Settings > Browsers.
 3. Full end-to-end check — in the Welcome window click "Set as Default Browser" and confirm the macOS system prompt. The Welcome window then shows "Browsify is your default browser". Now click any http/https link in another app (Mail, Messages), or run `open https://www.apple.com` in Terminal; the same picker appears. This works whether or not Browsify is already running.
 4. For rule-based routing: open Settings from the menu bar icon, go to Rules, add a rule — match type "Domain", value "apple.com", target Safari. An apple.com link now opens in Safari immediately with no picker; other links still show the picker.
 5. To restore the previous default: System Settings > Desktop & Dock > Default web browser.
