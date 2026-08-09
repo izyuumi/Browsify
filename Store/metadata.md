@@ -54,7 +54,7 @@ Paid up front: USD 4.99 base price with Apple-suggested equivalents in other ter
 
 ## What's New
 
-Customize picker keyboard shortcuts for each browser. Number keys remain the default. This update also improves onboarding and lets you hide Browsify's menu bar icon.
+Customize picker keyboard shortcuts with letters, numbers, symbols, Space, Return, arrow keys, and function keys. Number keys remain the default. This update also improves onboarding and lets you hide Browsify's menu bar icon.
 
 ## Review Notes (for App Review)
 
@@ -65,7 +65,7 @@ Browsify can be exercised without changing the default browser: choose "Test Bro
 To test (about one minute):
 
 1. Launch Browsify. A Welcome window appears and an icon is added to the menu bar. There is no Dock icon by design (LSUIElement) — the menu bar icon is the app's interface.
-2. Fastest check — in the Welcome window click "Test Browsify with a Link…" (or pick it from the menu bar icon), accept the pre-filled https://www.apple.com, and click Open. Browsify's picker panel appears listing installed browsers; click one or press its displayed shortcut. Number keys are the defaults, and custom A–Z keys can be assigned in Settings > Browsers.
+2. Fastest check — in the Welcome window click "Test Browsify with a Link…" (or pick it from the menu bar icon), accept the pre-filled https://www.apple.com, and click Open. Browsify's picker panel appears listing installed browsers; click one or press its displayed shortcut. In Settings > Browsers, click a browser's Picker key button, then press a key. Letters, numbers, symbols, Space, Return, arrows, and function keys are supported; Escape cancels recording, and Command/Control/Option combinations are ignored.
 3. Full end-to-end check — in the Welcome window click "Set as Default Browser" and confirm the macOS system prompt. The Welcome window then shows "Browsify is your default browser". Now click any http/https link in another app (Mail, Messages), or run `open https://www.apple.com` in Terminal; the same picker appears. This works whether or not Browsify is already running.
 4. For rule-based routing: open Settings from the menu bar icon, go to Rules, add a rule — match type "Domain", value "apple.com", target Safari. An apple.com link now opens in Safari immediately with no picker; other links still show the picker.
 5. To restore the previous default: System Settings > Desktop & Dock > Default web browser.
