@@ -81,6 +81,7 @@ struct SettingsView: View {
 
 struct PreferencesView: View {
     @Binding var stripTrackingParameters: Bool
+    @AppStorage(AppDelegate.menuBarIconPreferenceKey) private var showMenuBarIcon = true
 
     var body: some View {
         Form {
@@ -91,6 +92,17 @@ struct PreferencesView: View {
                     }
 
                 Text("Removes UTM parameters and other tracking codes from URLs before opening them.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Section("Menu Bar") {
+                Toggle("Show Browsify in menu bar", isOn: $showMenuBarIcon)
+                    .onChange(of: showMenuBarIcon) { _, isVisible in
+                        (NSApp.delegate as? AppDelegate)?.setMenuBarIconVisible(isVisible)
+                    }
+
+                Text("If hidden, reopen Browsify from Spotlight or Applications to show Settings.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

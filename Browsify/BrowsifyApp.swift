@@ -24,6 +24,8 @@ struct BrowsifyApp: App {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+    static let menuBarIconPreferenceKey = "showMenuBarIcon"
+
     var statusItem: NSStatusItem?
     var browserPickerPanel: NSPanel?
     var settingsWindow: NSWindow?
@@ -34,6 +36,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var settingsWindowObserver: NSObjectProtocol?
     var welcomeWindowObserver: NSObjectProtocol?
     var pickerSizeCancellable: AnyCancellable?
+    private var receivedURLDuringLaunch = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // Must be installed before launch finishes: when a link click cold-launches Browsify,
@@ -45,18 +48,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Hide from Dock (menu bar only)
         NSApp.setActivationPolicy(.accessory)
 
-        // Create menu bar icon
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-
-        if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "link.circle", accessibilityDescription: "Browsify")
-        }
-
         // Initialize URLHandler (which will auto-detect browsers)
         let urlHandler = URLHandler.shared
         let browserDetector = urlHandler.getBrowserDetector()
 
-        rebuildStatusMenu()
+        setMenuBarIconVisible(Self.menuBarIconIsEnabled())
 
         // Observe showBrowserPicker changes and react immediately
         // The current value is delivered on subscribe: a link that cold-launched the app is
@@ -105,6 +101,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        let hasCompletedWelcome = UserDefaults.standard.bool(forKey: "hasCompletedWelcome")
+
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--export-ui-screens") {
             DispatchQueue.main.async {
@@ -123,18 +121,70 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async { [weak self] in
                 self?.showUITestScreen(uiTestScreen)
             }
-        } else if !UserDefaults.standard.bool(forKey: "hasCompletedWelcome") {
+        } else if !hasCompletedWelcome {
             DispatchQueue.main.async { [weak self] in
                 self?.showWelcome()
+            }
+        } else if Self.shouldShowSettingsOnLaunch(
+            hasCompletedWelcome: hasCompletedWelcome,
+            menuBarIconIsVisible: Self.menuBarIconIsEnabled(),
+            receivedURLDuringLaunch: receivedURLDuringLaunch
+        ) {
+            DispatchQueue.main.async { [weak self] in
+                self?.showSettings()
             }
         }
         #else
-        if !UserDefaults.standard.bool(forKey: "hasCompletedWelcome") {
+        if !hasCompletedWelcome {
             DispatchQueue.main.async { [weak self] in
                 self?.showWelcome()
             }
+        } else if Self.shouldShowSettingsOnLaunch(
+            hasCompletedWelcome: hasCompletedWelcome,
+            menuBarIconIsVisible: Self.menuBarIconIsEnabled(),
+            receivedURLDuringLaunch: receivedURLDuringLaunch
+        ) {
+            DispatchQueue.main.async { [weak self] in
+                self?.showSettings()
+            }
         }
         #endif
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard !Self.menuBarIconIsEnabled() else { return true }
+        showSettings()
+        return false
+    }
+
+    static func menuBarIconIsEnabled(in defaults: UserDefaults = .standard) -> Bool {
+        guard defaults.object(forKey: menuBarIconPreferenceKey) != nil else { return true }
+        return defaults.bool(forKey: menuBarIconPreferenceKey)
+    }
+
+    static func shouldShowSettingsOnLaunch(
+        hasCompletedWelcome: Bool,
+        menuBarIconIsVisible: Bool,
+        receivedURLDuringLaunch: Bool
+    ) -> Bool {
+        hasCompletedWelcome && !menuBarIconIsVisible && !receivedURLDuringLaunch
+    }
+
+    func setMenuBarIconVisible(_ isVisible: Bool) {
+        if isVisible {
+            guard statusItem == nil else { return }
+
+            let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+            item.button?.image = NSImage(
+                systemSymbolName: "link.circle",
+                accessibilityDescription: "Browsify"
+            )
+            statusItem = item
+            rebuildStatusMenu()
+        } else if let statusItem {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            self.statusItem = nil
+        }
     }
 
     private func setupURLHandling() {
@@ -152,6 +202,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        receivedURLDuringLaunch = true
         let sourceApp = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         URLHandler.shared.handleURL(url, sourceApp: sourceApp)
         // Browser picker will show automatically via Combine observer when showBrowserPicker becomes true
