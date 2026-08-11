@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="92" y1="72" x2="926" y2="950" gradientUnits="userSpaceOnUse"><stop stop-color="#06142D"/><stop offset="0.56" stop-color="#102A66"/><stop offset="1" stop-color="#281445"/></linearGradient>
+    <linearGradient id="mint" x1="322" y1="194" x2="810" y2="516" gradientUnits="userSpaceOnUse"><stop stop-color="#73F7FF"/><stop offset="0.48" stop-color="#2CCBFF"/><stop offset="1" stop-color="#3380FF"/></linearGradient>
+    <linearGradient id="coral" x1="196" y1="500" x2="698" y2="826" gradientUnits="userSpaceOnUse"><stop stop-color="#8F7CFF"/><stop offset="0.48" stop-color="#A557F3"/><stop offset="1" stop-color="#EC4CC6"/></linearGradient>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="200%"><feDropShadow dx="0" dy="28" stdDeviation="28" flood-color="#01070A" flood-opacity="0.54"/></filter>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="202" fill="url(#bg)"/>
+  <g filter="url(#shadow)">
+    <path fill="url(#mint)" fill-rule="evenodd" transform="rotate(-30 570 370)" d="M438 220H702A132 132 0 0 1 702 484H438A132 132 0 0 1 438 220ZM438 290H702A62 62 0 0 1 702 414H438A62 62 0 0 1 438 290Z"/>
+    <path fill="url(#coral)" fill-rule="evenodd" transform="rotate(-30 454 654)" d="M322 504H586A132 132 0 0 1 586 768H322A132 132 0 0 1 322 504ZM322 574H586A62 62 0 0 1 586 698H322A62 62 0 0 1 322 574Z"/>
+  </g>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="mint" x1="322" y1="194" x2="810" y2="516" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#73F7FF"/><stop offset="0.48" stop-color="#2CCBFF"/><stop offset="1" stop-color="#3380FF"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#mint)" fill-rule="evenodd" transform="rotate(-30 570 370)" d="M438 220H702A132 132 0 0 1 702 484H438A132 132 0 0 1 438 220ZM438 290H702A62 62 0 0 1 702 414H438A62 62 0 0 1 438 290Z"/>
+</svg>

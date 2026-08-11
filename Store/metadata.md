@@ -1,4 +1,4 @@
-# App Store Metadata — Browsify 1.0.2
+# App Store Metadata — Browsify 1.0.3
 
 ## Name (30 chars max)
 
@@ -35,9 +35,9 @@ browser,picker,default,chooser,link,router,url,profile,chrome,open,redirect,trac
 
 ## URLs
 
-- Privacy Policy: https://github.com/izyuumi/Browsify/blob/main/PRIVACY.md
-- Support: https://github.com/izyuumi/Browsify/issues
-- Marketing (optional): https://github.com/izyuumi/Browsify
+- Privacy Policy: https://browsify.yumi.to/privacy/
+- Support: https://browsify.yumi.to/support/
+- Marketing: https://browsify.yumi.to/
 
 ## App Privacy
 
@@ -54,7 +54,7 @@ Paid up front: USD 4.99 base price with Apple-suggested equivalents in other ter
 
 ## What's New
 
-Customize picker keyboard shortcuts with letters, numbers, symbols, Space, Return, arrow keys, and function keys. Number keys remain the default. This update also improves onboarding and lets you hide Browsify's menu bar icon.
+Browsify has a new app icon, refined for clarity and a modern macOS look.
 
 ## Review Notes (for App Review)
 

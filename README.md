@@ -2,6 +2,8 @@
 
 A macOS menu bar application that intelligently routes HTTP/HTTPS URLs to different browsers or desktop applications based on user-defined rules.
 
+[Website](https://browsify.yumi.to/) · [Mac App Store](https://apps.apple.com/app/browsify/id6754360715?mt=12)
+
 ## Features
 
 - Route URLs to specific browsers based on domain patterns

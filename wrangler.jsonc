@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "browsify",
+  "compatibility_date": "2026-08-12",
+  "assets": {
+    "directory": "./Website/public"
+  },
+  "routes": [
+    {
+      "pattern": "browsify.yumi.to",
+      "custom_domain": true
+    }
+  ]
+}

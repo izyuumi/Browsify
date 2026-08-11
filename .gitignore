@@ -26,6 +26,7 @@ Icon
 # Build
 build/
 Build/
+.wrangler/
 *.app
 *.dSYM.zip
 *.dSYM
