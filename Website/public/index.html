@@ -90,9 +90,29 @@
         <h2 id="product-title">Set it once.<br>Forget the friction.</h2>
         <p>Rules cover predictable links. A keyboard-first picker appears for everything else.</p>
       </div>
-      <div class="product-window">
-        <div class="window-bar" aria-hidden="true"><span></span><span></span><span></span></div>
-        <img src="assets/welcome.webp" alt="Browsify welcome window with default-browser setup and optional profile access" width="1920" height="1200">
+      <div class="product-gallery">
+        <div class="product-window product-window-picker">
+          <img
+            src="assets/picker.webp"
+            srcset="assets/picker-960.webp 960w, assets/picker.webp 1920w"
+            sizes="(max-width: 600px) calc(100vw - 28px), (max-width: 860px) calc(100vw - 48px), 62vw"
+            alt="Browsify browser picker offering Safari, Google Chrome, Firefox, and Brave"
+            width="1920"
+            height="1200"
+            loading="lazy"
+            decoding="async">
+        </div>
+        <div class="product-window product-window-welcome">
+          <img
+            src="assets/welcome.webp"
+            srcset="assets/welcome-960.webp 960w, assets/welcome.webp 1920w"
+            sizes="(max-width: 600px) calc(100vw - 28px), (max-width: 860px) calc(100vw - 48px), 30vw"
+            alt="Browsify welcome window with default-browser setup and optional profile access"
+            width="1920"
+            height="1200"
+            loading="lazy"
+            decoding="async">
+        </div>
       </div>
     </section>
 

@@ -39,10 +39,10 @@ enum UIScreenshotExporter {
         let handlerDetector = handler.getBrowserDetector()
         handlerDetector.allBrowsers = detector.allBrowsers
         handlerDetector.browsers = detector.browsers
-        handler.pendingURL = URL(string: "https://browsify-ui-test.invalid/a/long/path?query=screenshot")
+        handler.pendingURL = URL(string: "https://github.com/izyuumi/Browsify")
         try capture(
             BrowserPickerView(urlHandler: handler, browserDetector: handlerDetector),
-            size: NSSize(width: 264, height: 132),
+            size: NSSize(width: 344, height: 132),
             styleMask: [.titled, .fullSizeContentView],
             name: "02-browser-picker",
             directory: directory
@@ -108,24 +108,32 @@ enum UIScreenshotExporter {
         let detector = BrowserDetector()
         RunLoop.main.run(until: Date().addingTimeInterval(0.1))
 
+        let firefoxPath = ProcessInfo.processInfo.environment["BROWSIFY_SCREENSHOT_FIREFOX_PATH"]
+            ?? "/Applications/Firefox.app"
         let browsers = [
             Browser(
                 id: UUID(uuidString: "10000000-0000-0000-0000-000000000001")!,
-                name: "Brave Browser",
-                bundleIdentifier: "com.brave.Browser",
-                path: "/Applications/Brave Browser.app"
+                name: "Safari",
+                bundleIdentifier: "com.apple.Safari",
+                path: "/Applications/Safari.app"
             ),
             Browser(
                 id: UUID(uuidString: "10000000-0000-0000-0000-000000000002")!,
-                name: "Firefox",
-                bundleIdentifier: "org.mozilla.firefox",
-                path: "/Applications/Firefox.app"
-            ),
-            Browser(
-                id: UUID(uuidString: "10000000-0000-0000-0000-000000000003")!,
                 name: "Google Chrome",
                 bundleIdentifier: "com.google.Chrome",
                 path: "/Applications/Google Chrome.app"
+            ),
+            Browser(
+                id: UUID(uuidString: "10000000-0000-0000-0000-000000000003")!,
+                name: "Firefox",
+                bundleIdentifier: "org.mozilla.firefox",
+                path: firefoxPath
+            ),
+            Browser(
+                id: UUID(uuidString: "10000000-0000-0000-0000-000000000004")!,
+                name: "Brave Browser",
+                bundleIdentifier: "com.brave.Browser",
+                path: "/Applications/Brave Browser.app"
             )
         ]
         detector.allBrowsers = browsers
@@ -195,9 +203,22 @@ enum UIScreenshotExporter {
 
     private static func write(_ view: NSView, name: String, directory: URL) throws {
         view.layoutSubtreeIfNeeded()
-        guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+        let scale: CGFloat = 4
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(view.bounds.width * scale),
+            pixelsHigh: Int(view.bounds.height * scale),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
             throw ScreenshotError.bitmap(name)
         }
+        bitmap.size = view.bounds.size
         view.cacheDisplay(in: view.bounds, to: bitmap)
         guard let data = bitmap.representation(using: .png, properties: [:]) else {
             throw ScreenshotError.encoding(name)
