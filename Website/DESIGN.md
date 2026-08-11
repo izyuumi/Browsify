@@ -2,39 +2,39 @@
 
 ## Intent
 
-A modern native-Mac product page with one dominant product artifact. The physical scene is a Mac user moving between browser contexts at night: dark desktop, crisp system type, bright routing signals.
+A simple, tactile native-Mac product page with one dominant interactive routing playground. The physical scene is a bright Mac workspace where a clicked link visibly travels to the right context.
 
 ## Color
 
-- Canvas: deep navy from the app icon (`#06142D`, `#102A66`, `#281445`).
-- Text: near-white with cool blue-gray secondary text.
+- Canvas: cool near-white with deep navy text.
+- Product stage: deep navy from the app icon (`#06142D`, `#102A66`, `#281445`).
 - Route A: cyan (`#73F7FF`, `#2CCBFF`, `#3380FF`).
 - Route B: violet (`#8F7CFF`, `#A557F3`, `#EC4CC6`).
-- Strategy: committed dark palette. Cyan and violet identify routing paths; they do not color ordinary body copy.
+- Strategy: restrained light page with one committed dark product stage. Cyan and violet identify routing paths; they do not color ordinary body copy.
 
 ## Typography
 
-Use the macOS system stack deliberately. Display text is large but restrained, no tighter than `-0.04em`. Body copy stays within 68 characters per line with generous line-height on the dark canvas.
+Use the macOS system stack deliberately. Display text is large but restrained, no tighter than `-0.04em`. Body copy stays within 68 characters per line.
 
 ## Composition
 
-- Compact persistent identity in the header.
-- Hero copy and icon establish the promise.
-- A wide, real product screenshot is the dominant artifact.
-- Feature explanation follows as editorial rows and a routing line, not repeated cards.
-- Privacy becomes a contrasting proof band near the decision point.
+- Compact sticky identity and App Store action in the header.
+- Centered hero copy and icon establish the promise.
+- A wide, interactive route playground is the dominant artifact.
+- A real product screenshot and concise feature rows provide proof.
+- A dark closing stage repeats the decision point.
 
 ## Components
 
 - Wordmark: small app icon plus Browsify name.
 - Primary action: solid near-white rounded button, dark text, clear arrow.
 - Secondary action: quiet text link with visible underline on hover/focus.
-- Product stage: screenshot with a restrained border and short shadow, never glass.
-- Route strip: semantic list with connected nodes for source, rule, and destination.
+- Product stage: interactive source-to-destination route with four real-world examples.
+- Product screenshot: lightly rotated Mac window with a short shadow, never glass.
 
 ## Motion
 
-One soft icon drift and one product-stage entrance. Content remains visible without JavaScript. Disable transforms and animations under `prefers-reduced-motion: reduce`.
+One icon entrance, route particle motion, small hover responses, and pointer-following color inside the playground. Core content remains visible without JavaScript. Disable transforms and animations under `prefers-reduced-motion: reduce`.
 
 ## Responsive Behavior
 

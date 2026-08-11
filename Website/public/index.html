@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Browsify — Route every link to the right place</title>
-  <meta name="description" content="Browsify routes links to the right browser, profile, or Mac app using your rules—and shows a fast picker when no rule matches.">
-  <meta name="theme-color" content="#06142D">
+  <title>Browsify — Every link, right place</title>
+  <meta name="description" content="Browsify routes every link to the right browser, profile, or Mac app. Rules handle the routine. A fast picker handles the rest.">
+  <meta name="theme-color" content="#F7F9FD">
   <link rel="canonical" href="https://browsify.yumi.to/">
-  <link rel="icon" href="/assets/browsify-icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="/styles.css">
-  <meta property="og:title" content="Browsify — Route every link to the right place">
+  <link rel="icon" href="assets/browsify-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
+  <meta property="og:title" content="Browsify — Every link, right place">
   <meta property="og:description" content="A focused link router for Mac. Rules when you know, a picker when you don't.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://browsify.yumi.to/">
@@ -20,77 +21,112 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <a class="wordmark" href="/" aria-label="Browsify home">
-      <img src="/assets/browsify-icon.svg" alt="" width="38" height="38">
+      <img src="assets/browsify-icon.svg" alt="" width="40" height="40">
       <span>Browsify</span>
     </a>
     <nav class="site-nav" aria-label="Primary navigation">
-      <a href="#how-it-works">How it works</a>
-      <a href="/privacy/">Privacy</a>
+      <a href="#features">Features</a>
       <a href="/support/">Support</a>
+      <a class="nav-cta" href="https://apps.apple.com/app/browsify/id6754360715?mt=12">View on App Store <span aria-hidden="true">↗</span></a>
     </nav>
   </header>
 
   <main id="main">
     <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <h1 id="hero-title">Every link. <span>Right place.</span></h1>
-        <p class="hero-lede">Browsify sends links to the browser, profile, or Mac app where they belong. Rules handle the routine. A fast picker handles the rest.</p>
-        <div class="actions">
-          <a class="button" href="https://apps.apple.com/app/browsify/id6754360715?mt=12">View on Mac App Store <span class="button-arrow" aria-hidden="true">↗</span></a>
-          <a class="text-link" href="#product">See Browsify in action</a>
+      <img class="hero-icon" src="assets/browsify-icon.svg" alt="" width="112" height="112">
+      <h1 id="hero-title">Every link.<br><span>Right place.</span></h1>
+      <p>Browsify sends links to the browser, profile, or Mac app where they belong—automatically.</p>
+      <div class="hero-actions">
+        <a class="button" href="https://apps.apple.com/app/browsify/id6754360715?mt=12"><span>View on Mac App Store</span><span class="button-arrow" aria-hidden="true">↗</span></a>
+        <a class="quiet-button" href="#playground">Try it below</a>
+      </div>
+    </section>
+
+    <section class="playground" id="playground" aria-labelledby="playground-title">
+      <div class="playground-heading">
+        <h2 id="playground-title">See where your links land.</h2>
+        <p>Choose an example. Browsify finds the right context.</p>
+      </div>
+
+      <div class="demo-shell" data-demo-shell>
+        <div class="demo-glow" aria-hidden="true"></div>
+        <div class="demo-toolbar" aria-hidden="true">
+          <span></span><span></span><span></span>
+          <strong>Browsify</strong>
+        </div>
+
+        <div class="demo-stage" aria-live="polite">
+          <div class="demo-node demo-source">
+            <span class="node-label" id="source-label">Slack</span>
+            <strong id="source-title">Pull request</strong>
+            <span class="node-detail" id="source-url">github.com/izyuumi/Browsify/pull/42</span>
+          </div>
+
+          <div class="route-track" aria-hidden="true">
+            <span class="track-line"></span>
+            <span class="route-particle"></span>
+            <img src="assets/browsify-icon.svg" alt="" width="48" height="48">
+          </div>
+
+          <div class="demo-node demo-destination">
+            <span class="node-label">Opens in</span>
+            <strong id="destination-title">Chrome · Work</strong>
+            <span class="node-detail" id="destination-reason">Rule: github.com from Slack</span>
+          </div>
+        </div>
+
+        <div class="demo-examples" role="tablist" aria-label="Example links">
+          <button type="button" role="tab" aria-selected="true" data-route="work">Work link</button>
+          <button type="button" role="tab" aria-selected="false" data-route="personal">Personal link</button>
+          <button type="button" role="tab" aria-selected="false" data-route="meeting">Meeting link</button>
+          <button type="button" role="tab" aria-selected="false" data-route="picker">No matching rule</button>
         </div>
       </div>
-      <img class="hero-icon" src="/assets/browsify-icon.svg" alt="Browsify app icon: two interlocking links" width="330" height="330">
+      <p class="demo-hint"><span aria-hidden="true">↖</span> It’s interactive.</p>
     </section>
 
-    <section class="product-scene" id="product" aria-labelledby="product-caption">
-      <div class="product-frame">
-        <img src="/assets/welcome.webp" alt="Browsify welcome window showing default-browser setup and optional browser profile access" width="1920" height="1200">
+    <section class="product-proof" aria-labelledby="product-title">
+      <div class="proof-copy">
+        <h2 id="product-title">Set it once.<br>Forget the friction.</h2>
+        <p>Rules cover predictable links. A keyboard-first picker appears for everything else.</p>
       </div>
-      <div class="scene-caption" id="product-caption">
-        <span>A native menu bar app for macOS 14 and later.</span>
-        <span>Set up once. Change rules whenever you need.</span>
-      </div>
-    </section>
-
-    <section class="route-section" id="how-it-works" aria-labelledby="route-title">
-      <div class="route-intro">
-        <h2 id="route-title">Links stop being little decisions.</h2>
-        <p>Browsify sits between a click and its destination. Match a rule, or choose with one key.</p>
-      </div>
-      <ol class="route-flow" aria-label="Browsify link routing flow">
-        <li class="route-node"><strong>You click a link</strong><span>From Mail, Messages, Slack, or any other app.</span></li>
-        <li class="route-arrow" aria-hidden="true">→</li>
-        <li class="route-node"><strong>Browsify checks rules</strong><span>Match a domain, URL pattern, or source app.</span></li>
-        <li class="route-arrow" aria-hidden="true">→</li>
-        <li class="route-node"><strong>It opens in context</strong><span>Browser, profile, desktop app—or your picker.</span></li>
-      </ol>
-    </section>
-
-    <section class="feature-row" aria-labelledby="picker-title">
-      <div class="feature-copy">
-        <h2 id="picker-title">When no rule matches, pick without slowing down.</h2>
-        <p>The compact browser picker keeps the URL visible and puts every destination on a keyboard shortcut.</p>
-        <ul class="feature-list">
-          <li>Customize picker keys with letters, numbers, symbols, arrows, or function keys.</li>
-          <li>Reorder browsers, hide the ones you do not use, and add custom browsers.</li>
-          <li>Target Chrome, Brave, Edge, Vivaldi, or Firefox profiles when you grant access.</li>
-        </ul>
-      </div>
-      <div class="picker-shot">
-        <img src="/assets/picker.webp" alt="Browsify picker offering two browser destinations for an example URL" width="1920" height="1200" loading="lazy">
+      <div class="product-window">
+        <div class="window-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+        <img src="assets/welcome.webp" alt="Browsify welcome window with default-browser setup and optional profile access" width="1920" height="1200">
       </div>
     </section>
 
-    <section class="privacy-band" aria-labelledby="privacy-title">
-      <h2 id="privacy-title">Your links stay on your Mac.</h2>
-      <p>Browsify has no accounts, analytics, or online service. It makes no network requests. URLs are processed on-device and settings stay in macOS user defaults.</p>
-      <a href="/privacy/">Read the privacy policy</a>
+    <section class="features" id="features" aria-labelledby="features-title">
+      <h2 id="features-title">Small app.<br>Big relief.</h2>
+      <div class="feature-list">
+        <article>
+          <span class="feature-mark" aria-hidden="true">↗</span>
+          <h3>Rules that fit your day</h3>
+          <p>Match domains, URL patterns, or the app a link came from.</p>
+        </article>
+        <article>
+          <span class="feature-mark" aria-hidden="true">⌘</span>
+          <h3>A picker built for speed</h3>
+          <p>Choose any destination with a custom keyboard shortcut.</p>
+        </article>
+        <article>
+          <span class="feature-mark" aria-hidden="true">◎</span>
+          <h3>Your browser profiles</h3>
+          <p>Send links directly to Chrome, Brave, Edge, Vivaldi, or Firefox profiles.</p>
+        </article>
+        <article>
+          <span class="feature-mark" aria-hidden="true">●</span>
+          <h3>Private by default</h3>
+          <p>No account, analytics, or online service. Your links stay on your Mac.</p>
+        </article>
+      </div>
     </section>
 
     <section class="closing" aria-labelledby="closing-title">
-      <h2 id="closing-title">Less copying. Less choosing. Better context.</h2>
-      <a class="button" href="https://apps.apple.com/app/browsify/id6754360715?mt=12">Get Browsify for Mac <span class="button-arrow" aria-hidden="true">↗</span></a>
+      <img src="assets/browsify-icon.svg" alt="" width="88" height="88">
+      <h2 id="closing-title">Click once.<br>Land right.</h2>
+      <p>Browsify for macOS 14 and later.</p>
+      <a class="button button-light" href="https://apps.apple.com/app/browsify/id6754360715?mt=12"><span>View on Mac App Store</span><span class="button-arrow" aria-hidden="true">↗</span></a>
     </section>
   </main>
 
