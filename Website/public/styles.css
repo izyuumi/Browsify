@@ -58,6 +58,7 @@ button:focus-visible {
 button,
 a {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .skip-link {
@@ -98,6 +99,8 @@ main > section,
 
 .wordmark {
   display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
   align-items: center;
   gap: 12px;
   font-size: 20px;
@@ -430,7 +433,7 @@ main > section,
 }
 
 .demo-examples button {
-  min-height: 42px;
+  min-height: 44px;
   padding: 10px 15px;
   border: 0;
   border-radius: 10px;
@@ -619,6 +622,11 @@ main > section,
 
 .footer-links a,
 .text-link {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
   text-decoration-thickness: 1px;
   text-underline-offset: 4px;
 }
@@ -737,7 +745,17 @@ main > section,
   }
 
   .site-header {
-    padding-block: 14px;
+    padding-top: calc(14px + env(safe-area-inset-top));
+    padding-bottom: 14px;
+  }
+
+  .site-header,
+  .site-footer,
+  main > section:not(.closing),
+  .legal-main {
+    width: auto;
+    margin-inline-start: max(14px, env(safe-area-inset-left));
+    margin-inline-end: max(14px, env(safe-area-inset-right));
   }
 
   .wordmark span,
@@ -815,6 +833,7 @@ main > section,
   .site-footer {
     align-items: flex-start;
     flex-direction: column;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom));
   }
 }
 
