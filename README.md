@@ -4,7 +4,7 @@
 
 Browsify is a native macOS menu bar app for people who keep work, personal, and client identities separate. Links clicked in Slack, Mail, Calendar, Terminal, and other apps can open where you are already signed in.
 
-[Website](https://browsify.yumi.to/) · [Mac App Store](https://apps.apple.com/app/browsify/id6754360715?mt=12) · [Support](https://browsify.yumi.to/support/) · [Privacy](https://browsify.yumi.to/privacy/)
+[Website](https://browsify.yumi.to/) · [Mac App Store](https://apps.apple.com/app/apple-store/id6754360715?pt=118700350&ct=browsify-github-2026-09&mt=8) · [Support](https://browsify.yumi.to/support/) · [Privacy](https://browsify.yumi.to/privacy/)
 
 ![Browsify browser and profile picker](Website/public/assets/picker-960.webp)
 

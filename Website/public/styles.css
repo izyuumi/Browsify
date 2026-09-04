@@ -251,6 +251,51 @@ main > section,
   padding-bottom: clamp(112px, 15vw, 192px);
 }
 
+.real-demo {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.62fr) minmax(0, 1.38fr);
+  align-items: center;
+  gap: clamp(48px, 9vw, 128px);
+  padding-bottom: clamp(120px, 16vw, 208px);
+}
+
+.real-demo-copy h2 {
+  margin: 0;
+  font-size: clamp(2.8rem, 5.6vw, 5rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.real-demo-copy p {
+  max-width: 42ch;
+  margin: 28px 0 0;
+  color: var(--muted);
+  font-size: 19px;
+  text-wrap: pretty;
+}
+
+.real-demo-media {
+  margin: 0;
+}
+
+.real-demo-media video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius);
+  background: var(--navy);
+  box-shadow: 0 8px 8px oklch(0.25 0.05 260 / 0.16);
+}
+
+.real-demo-media figcaption {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
 .playground-heading {
   display: flex;
   align-items: end;
@@ -692,6 +737,7 @@ main > section,
 
 @media (max-width: 860px) {
   .playground-heading,
+  .real-demo,
   .product-proof,
   .features {
     grid-template-columns: 1fr;
