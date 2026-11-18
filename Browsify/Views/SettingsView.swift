@@ -74,7 +74,7 @@ struct SettingsView: View {
                 }
                 .tag(SettingsTab.about)
         }
-        .frame(width: 700, height: 500)
+        .frame(width: 700, height: 640)
         .accessibilityIdentifier("settings-screen")
     }
 }

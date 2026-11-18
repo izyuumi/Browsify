@@ -55,7 +55,7 @@ enum UIScreenshotExporter {
                     profileManager: profileManager,
                     initialTab: tab
                 ),
-                size: NSSize(width: 700, height: 500),
+                size: NSSize(width: 700, height: 640),
                 title: "Settings",
                 name: String(format: "%02d-%@", index, name),
                 directory: directory
@@ -81,7 +81,7 @@ enum UIScreenshotExporter {
         )
         try capture(
             ProfilesListView(profileManager: profileManager, ruleEngine: rules, showingAddProfile: true),
-            size: NSSize(width: 700, height: 500),
+            size: NSSize(width: 700, height: 640),
             title: "Settings",
             name: "12-add-profile",
             directory: directory
