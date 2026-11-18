@@ -420,6 +420,10 @@ class BrowserDetector: ObservableObject {
     }
 
     func requestProfileAccess(for browser: Browser) {
+        #if DEBUG
+        // Demo data never asks for access to real browser profile folders.
+        if DemoData.isEnabled { return }
+        #endif
         guard let bundleIdentifier = browser.bundleIdentifier else { return }
         accessManager.requestProfileFolderAccess(for: bundleIdentifier) { [weak self] granted in
             guard granted else { return }

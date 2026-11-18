@@ -644,7 +644,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Browser entries
             let browsers = browserDetector.browsers
             if browsers.isEmpty {
-                let placeholder = NSMenuItem(title: "No Browsers Detected", action: nil, keyEquivalent: "")
+                let placeholder = NSMenuItem(title: "No Browsers Found", action: nil, keyEquivalent: "")
                 placeholder.isEnabled = false
                 menu.addItem(placeholder)
             } else {
@@ -717,7 +717,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func menuIcon(for browser: Browser) -> NSImage? {
         guard let icon = browser.iconImage else {
-            return nil
+            // Same fallback as the picker; a template image adapts to light and dark menus.
+            return NSImage(systemSymbolName: "globe", accessibilityDescription: nil)
         }
 
         let targetSize = NSSize(width: 18, height: 18)

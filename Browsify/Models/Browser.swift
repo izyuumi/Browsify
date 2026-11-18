@@ -50,6 +50,13 @@ struct Browser: Identifiable, Codable, Hashable {
     }
 
     func openURL(_ url: URL, profile: BrowserProfile? = nil) {
+        #if DEBUG
+        // Demo data must never launch the user's real browsers or create real browser profiles.
+        if DemoData.isEnabled {
+            NSLog("[Demo] Would open \(url.absoluteString) in \(name)")
+            return
+        }
+        #endif
         let arguments = profile?.profilePath.isEmpty == false ? profile?.launchArguments(for: url) ?? [] : []
 
         // Custom browsers retain the security scope received when the user selected their

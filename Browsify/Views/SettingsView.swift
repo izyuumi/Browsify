@@ -149,7 +149,9 @@ struct RulesListView: View {
                     Section {
                         Text(isReorderMode
                             ? "Drag rules to change their order, then click Done."
-                            : "Rules are checked from top to bottom; the first match wins. Click Reorder to change the order.")
+                            : ruleEngine.rules.count > 1
+                                ? "Rules are checked from top to bottom; the first match wins. Click Reorder to change the order."
+                                : "Rules are checked from top to bottom; the first match wins.")
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
@@ -281,7 +283,7 @@ struct RuleRowView: View {
             if !isReorderMode {
                 Toggle("Enabled", isOn: Binding(get: { rule.isEnabled }, set: { _ in toggleAction() }))
                     .labelsHidden()
-                    .help(rule.isEnabled ? "Turn off this rule" : "Turn on this rule")
+                    .help(rule.isEnabled ? "Turn Off Rule" : "Turn On Rule")
                     .accessibilityLabel("Rule for \(rule.pattern)")
             }
 
@@ -441,7 +443,7 @@ struct BrowsersListView: View {
             List {
                 Section {
                     if orderedBrowsers.isEmpty {
-                        Text("No browsers detected. Click Add Browser to add one.")
+                        Text("No browsers found. Click Add Browser to add one.")
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(orderedBrowsers) { browser in
@@ -786,14 +788,13 @@ struct BrowserEditorView: View {
                         Button("Choose…") {
                             selectBrowserApp()
                         }
-                        .help("Choose the browser app in Finder")
+                        .help("Choose Browser App")
                     }
                 }
 
                 TextField("Name", text: $name, prompt: Text("Browser name"))
             }
             .formStyle(.grouped)
-            .scrollDisabled(true)
 
             Divider()
 
