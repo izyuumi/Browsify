@@ -2,6 +2,8 @@
 import AppKit
 import SwiftUI
 
+/// Renders every screen offscreen with `DemoData` (export always runs in demo mode,
+/// so no real browsers, profiles, rules, or settings are read).
 @MainActor
 enum UIScreenshotExporter {
     static func export() throws -> URL {
@@ -9,22 +11,11 @@ enum UIScreenshotExporter {
             .appendingPathComponent("BrowsifyUIScreens-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
-        let detector = makeBrowserDetector()
-        let rules = makeRuleEngine(browsers: detector.browsers)
+        let handler = URLHandler.shared
+        let detector = handler.getBrowserDetector()
+        let rules = handler.getRuleEngine()
         let profileManager = ProfileManager.shared
-        let savedProfiles = profileManager.profiles
-        let savedActiveProfileId = profileManager.activeProfileId
-        defer {
-            profileManager.profiles = savedProfiles
-            profileManager.activeProfileId = savedActiveProfileId
-        }
-
-        let profiles = [
-            Profile(id: UUID(uuidString: "20000000-0000-0000-0000-000000000001")!, name: "Work"),
-            Profile(id: UUID(uuidString: "20000000-0000-0000-0000-000000000002")!, name: "Personal")
-        ]
-        profileManager.profiles = profiles
-        profileManager.activeProfileId = profiles.first?.id
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
 
         try capture(
             WelcomeView(browserDetector: detector, doneAction: {}),
@@ -35,15 +26,12 @@ enum UIScreenshotExporter {
             directory: directory
         )
 
-        let handler = URLHandler.shared
-        let handlerDetector = handler.getBrowserDetector()
-        handlerDetector.allBrowsers = detector.allBrowsers
-        handlerDetector.browsers = detector.browsers
-        handler.pendingURL = URL(string: "https://github.com/izyuumi/Browsify")
+        handler.pendingURL = DemoData.pickerURL
         try capture(
-            BrowserPickerView(urlHandler: handler, browserDetector: handlerDetector),
+            BrowserPickerView(urlHandler: handler, browserDetector: detector),
             size: NSSize(width: 344, height: 132),
             styleMask: [.titled, .fullSizeContentView],
+            fitContentHeight: true,
             name: "02-browser-picker",
             directory: directory
         )
@@ -67,7 +55,7 @@ enum UIScreenshotExporter {
                     profileManager: profileManager,
                     initialTab: tab
                 ),
-                size: NSSize(width: 700, height: 500),
+                size: NSSize(width: 700, height: 640),
                 title: "Settings",
                 name: String(format: "%02d-%@", index, name),
                 directory: directory
@@ -76,8 +64,7 @@ enum UIScreenshotExporter {
 
         try capture(
             BrowserEditorView(browserDetector: detector, browser: nil),
-            size: NSSize(width: 500, height: 300),
-            title: "Add Browser",
+            size: NSSize(width: 480, height: 260),
             name: "10-add-browser",
             directory: directory
         )
@@ -89,67 +76,18 @@ enum UIScreenshotExporter {
                 rule: nil
             ),
             size: NSSize(width: 500, height: 480),
-            title: "Add Rule",
             name: "11-add-rule",
             directory: directory
         )
         try capture(
             ProfilesListView(profileManager: profileManager, ruleEngine: rules, showingAddProfile: true),
-            size: NSSize(width: 700, height: 500),
-            title: "Add Profile",
+            size: NSSize(width: 700, height: 640),
+            title: "Settings",
             name: "12-add-profile",
             directory: directory
         )
 
         return directory
-    }
-
-    private static func makeBrowserDetector() -> BrowserDetector {
-        let detector = BrowserDetector()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
-
-        let firefoxPath = ProcessInfo.processInfo.environment["BROWSIFY_SCREENSHOT_FIREFOX_PATH"]
-            ?? "/Applications/Firefox.app"
-        let browsers = [
-            Browser(
-                id: UUID(uuidString: "10000000-0000-0000-0000-000000000001")!,
-                name: "Safari",
-                bundleIdentifier: "com.apple.Safari",
-                path: "/Applications/Safari.app"
-            ),
-            Browser(
-                id: UUID(uuidString: "10000000-0000-0000-0000-000000000002")!,
-                name: "Google Chrome",
-                bundleIdentifier: "com.google.Chrome",
-                path: "/Applications/Google Chrome.app"
-            ),
-            Browser(
-                id: UUID(uuidString: "10000000-0000-0000-0000-000000000003")!,
-                name: "Firefox",
-                bundleIdentifier: "org.mozilla.firefox",
-                path: firefoxPath
-            ),
-            Browser(
-                id: UUID(uuidString: "10000000-0000-0000-0000-000000000004")!,
-                name: "Brave Browser",
-                bundleIdentifier: "com.brave.Browser",
-                path: "/Applications/Brave Browser.app"
-            )
-        ]
-        detector.allBrowsers = browsers
-        detector.browsers = browsers
-        return detector
-    }
-
-    private static func makeRuleEngine(browsers: [Browser]) -> RuleEngine {
-        let defaults = UserDefaults(suiteName: "to.yumi.Browsify.UIScreens.\(UUID().uuidString)")!
-        let engine = RuleEngine(defaults: defaults)
-        engine.rules = [
-            RoutingRule(matchType: .domain, pattern: "github.com", target: .browser(browserId: browsers[0].id, profileId: nil)),
-            RoutingRule(isEnabled: false, matchType: .urlPattern, pattern: "*.example.com/*", target: .browser(browserId: browsers[2].id, profileId: nil)),
-            RoutingRule(matchType: .sourceApp, pattern: "com.apple.mail", target: .desktopApp(bundleId: "com.tinyspeck.slackmacgap"))
-        ]
-        return engine
     }
 
     private static func capture<V: View>(

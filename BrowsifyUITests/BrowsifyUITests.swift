@@ -11,7 +11,8 @@ final class BrowsifyUITests: XCTestCase {
 
     private func launch(_ screen: String) {
         app = XCUIApplication()
-        app.launchArguments = ["--ui-test-screen=\(screen)", "-ApplePersistenceIgnoreState", "YES"]
+        // Demo data keeps attachments free of the tester's real browsers, profiles and rules.
+        app.launchArguments = ["--ui-test-screen=\(screen)", "--demo-data", "-ApplePersistenceIgnoreState", "YES"]
         app.launch()
     }
 
@@ -59,7 +60,7 @@ final class BrowsifyUITests: XCTestCase {
         launch("menu")
 
         XCTAssertTrue(app.menuItems["Open a Link…"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.menuItems["Settings..."].exists)
+        XCTAssertTrue(app.menuItems["Settings…"].exists)
         XCTAssertTrue(app.menuItems["Welcome to Browsify…"].exists)
         XCTAssertTrue(app.menuItems["Brave Browser"].exists)
         attach("02-status-menu")
