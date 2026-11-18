@@ -2,8 +2,6 @@
 //  BrowsifyApp.swift
 //  Browsify
 //
-//  Created by Yumi Izumi on 2025/10/14.
-//
 
 import SwiftUI
 import Combine
@@ -42,7 +40,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Must be installed before launch finishes: when a link click cold-launches Browsify,
         // the kAEGetURL event is delivered during launch and is dropped if no handler exists yet.
         setupURLHandling()
+        #if DEBUG
+        DemoData.applyAppearance()
+        #endif
     }
+
+    #if DEBUG
+    func applicationWillTerminate(_ notification: Notification) {
+        if DemoData.isEnabled { DemoData.wipe() }
+    }
+    #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide from Dock (menu bar only)
@@ -101,7 +108,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        let hasCompletedWelcome = UserDefaults.standard.bool(forKey: "hasCompletedWelcome")
+        let hasCompletedWelcome = UserDefaults.browsify.bool(forKey: "hasCompletedWelcome")
 
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--export-ui-screens") {
@@ -157,7 +164,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
-    static func menuBarIconIsEnabled(in defaults: UserDefaults = .standard) -> Bool {
+    static func menuBarIconIsEnabled(in defaults: UserDefaults = .browsify) -> Bool {
         guard defaults.object(forKey: menuBarIconPreferenceKey) != nil else { return true }
         return defaults.bool(forKey: menuBarIconPreferenceKey)
     }
@@ -377,15 +384,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        #if DEBUG
+        let initialTab = DemoData.settingsTab ?? .preferences
+        #else
+        let initialTab = SettingsTab.preferences
+        #endif
         let hostingController = NSHostingController(
             rootView: SettingsView(
                 ruleEngine: URLHandler.shared.getRuleEngine(),
-                browserDetector: URLHandler.shared.getBrowserDetector()
+                browserDetector: URLHandler.shared.getBrowserDetector(),
+                initialTab: initialTab
             )
         )
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 700, height: 500),
+            contentRect: NSRect(x: 0, y: 0, width: 700, height: 640),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
@@ -396,7 +409,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.center()
         window.contentViewController = hostingController
         #if DEBUG
-        if Self.uiTestScreen == nil {
+        if Self.uiTestScreen == nil && !DemoData.isEnabled {
             window.setFrameAutosaveName("BrowsifySettingsWindow")
         }
         #else
@@ -480,7 +493,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: window,
             queue: .main
         ) { [weak self] _ in
-            UserDefaults.standard.set(true, forKey: "hasCompletedWelcome")
+            UserDefaults.browsify.set(true, forKey: "hasCompletedWelcome")
             NSApp.setActivationPolicy(.accessory)
 
             if let observer = self?.welcomeWindowObserver {
@@ -523,7 +536,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func makeOpenLinkAlert() -> (NSAlert, NSTextField) {
         let alert = NSAlert()
         alert.messageText = "Open a Link"
-        alert.informativeText = "Browsify will route this link exactly as it would a link clicked in another app."
+        alert.informativeText = "Browsify routes this link exactly as if you had clicked it in another app."
         alert.addButton(withTitle: "Open")
         alert.addButton(withTitle: "Cancel")
 
@@ -531,6 +544,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         field.identifier = NSUserInterfaceItemIdentifier("ui-test-url-field")
         field.stringValue = "https://www.apple.com"
         field.placeholderString = "https://www.apple.com"
+        field.setAccessibilityLabel("Web address")
         alert.accessoryView = field
         return (alert, field)
     }
@@ -538,7 +552,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func makeInvalidAddressAlert() -> NSAlert {
         let alert = NSAlert()
         alert.messageText = "That doesn’t look like a web address"
-        alert.informativeText = "Enter an address such as https://www.apple.com."
+        alert.informativeText = "Enter an address such as apple.com or https://www.apple.com."
         alert.addButton(withTitle: "OK")
         return alert
     }
@@ -549,11 +563,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     #if DEBUG
     private static var uiTestScreen: String? {
-        let prefix = "--ui-test-screen="
-        return ProcessInfo.processInfo.arguments
-            .first(where: { $0.hasPrefix(prefix) })?
-            .dropFirst(prefix.count)
-            .description
+        DemoData.argument("ui-test-screen")
     }
 
     private func showUITestScreen(_ screen: String) {
@@ -566,7 +576,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             openTestLink()
         case "picker":
             let handler = URLHandler.shared
-            handler.pendingURL = URL(string: "https://browsify-ui-test.invalid/a/long/path?query=screenshot")
+            handler.pendingURL = DemoData.isEnabled
+                ? DemoData.pickerURL
+                : URL(string: "https://browsify-ui-test.invalid/a/long/path?query=screenshot")
             handler.sourceApplication = Bundle.main.bundleIdentifier
             handler.showBrowserPicker = true
         case "settings":
@@ -600,9 +612,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Profiles section
             let profileManager = ProfileManager.shared
             if !profileManager.profiles.isEmpty {
-                let headerItem = NSMenuItem(title: "Profile", action: nil, keyEquivalent: "")
-                headerItem.isEnabled = false
-                menu.addItem(headerItem)
+                menu.addItem(NSMenuItem.sectionHeader(title: "Profile"))
 
                 let noneItem = NSMenuItem(title: "None (All Rules Active)", action: #selector(self.selectNoProfile(_:)), keyEquivalent: "")
                 noneItem.target = self
@@ -621,7 +631,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             // Prompt option
-            let promptItem = NSMenuItem(title: "Prompt", action: #selector(self.selectPromptOption(_:)), keyEquivalent: "")
+            menu.addItem(NSMenuItem.sectionHeader(title: "Open Unmatched Links With"))
+            let promptItem = NSMenuItem(title: "Browser Picker", action: #selector(self.selectPromptOption(_:)), keyEquivalent: "")
             promptItem.target = self
             promptItem.state = defaultPreference == .prompt ? .on : .off
             if let shortcut = self.shortcutKey(forPosition: 1) {
@@ -633,7 +644,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Browser entries
             let browsers = browserDetector.browsers
             if browsers.isEmpty {
-                let placeholder = NSMenuItem(title: "No browsers detected", action: nil, keyEquivalent: "")
+                let placeholder = NSMenuItem(title: "No Browsers Found", action: nil, keyEquivalent: "")
                 placeholder.isEnabled = false
                 menu.addItem(placeholder)
             } else {
@@ -663,7 +674,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             menu.addItem(NSMenuItem.separator())
 
-            let settingsItem = NSMenuItem(title: "Settings...", action: #selector(self.showSettings), keyEquivalent: ",")
+            let settingsItem = NSMenuItem(title: "Settings…", action: #selector(self.showSettings), keyEquivalent: ",")
             settingsItem.target = self
             menu.addItem(settingsItem)
 
@@ -706,7 +717,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func menuIcon(for browser: Browser) -> NSImage? {
         guard let icon = browser.iconImage else {
-            return nil
+            // Same fallback as the picker; a template image adapts to light and dark menus.
+            return NSImage(systemSymbolName: "globe", accessibilityDescription: nil)
         }
 
         let targetSize = NSSize(width: 18, height: 18)

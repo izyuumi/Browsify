@@ -20,7 +20,7 @@ struct SettingsView: View {
     @ObservedObject var browserDetector: BrowserDetector
     @ObservedObject var profileManager: ProfileManager
 
-    @State private var stripTrackingParameters = UserDefaults.standard.bool(forKey: "stripTrackingParameters")
+    @State private var stripTrackingParameters = UserDefaults.browsify.bool(forKey: "stripTrackingParameters")
     @State private var selection: SettingsTab
 
     init(
@@ -74,26 +74,26 @@ struct SettingsView: View {
                 }
                 .tag(SettingsTab.about)
         }
-        .frame(width: 700, height: 500)
+        .frame(width: 700, height: 640)
         .accessibilityIdentifier("settings-screen")
     }
 }
 
 struct PreferencesView: View {
     @Binding var stripTrackingParameters: Bool
-    @AppStorage(AppDelegate.menuBarIconPreferenceKey) private var showMenuBarIcon = true
+    @AppStorage(AppDelegate.menuBarIconPreferenceKey, store: .browsify) private var showMenuBarIcon = true
 
     var body: some View {
         Form {
             Section("Privacy") {
                 Toggle("Strip tracking parameters from URLs", isOn: $stripTrackingParameters)
                     .onChange(of: stripTrackingParameters) { _, newValue in
-                        UserDefaults.standard.set(newValue, forKey: "stripTrackingParameters")
+                        UserDefaults.browsify.set(newValue, forKey: "stripTrackingParameters")
                     }
 
-                Text("Removes UTM parameters and other tracking codes from URLs before opening them.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Text("Removes UTM parameters and other tracking codes from links before opening them.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Menu Bar") {
@@ -104,27 +104,22 @@ struct PreferencesView: View {
                     }
 
                 Text("If hidden, reopen Browsify from Spotlight or Applications to show Settings.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Default Browser") {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Set Browsify as Default Browser")
-                        .font(.headline)
-
-                    Text("Click the button below to set Browsify as your default browser. macOS will show a confirmation dialog.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
+                LabeledContent {
                     Button("Set as Default Browser") {
                         setAsDefaultBrowser()
                     }
+                } label: {
+                    Text("Make Browsify your default browser")
+                    Text("macOS will ask you to confirm.")
                 }
             }
         }
         .formStyle(.grouped)
-        .padding()
         .accessibilityIdentifier("preferences-screen")
     }
 
@@ -148,12 +143,18 @@ struct RulesListView: View {
     @State private var isReorderMode = false
 
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             List {
-                Section {
-                    Text("Drag rules to reorder. The first match wins.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                if !ruleEngine.rules.isEmpty {
+                    Section {
+                        Text(isReorderMode
+                            ? "Drag rules to change their order, then click Done."
+                            : ruleEngine.rules.count > 1
+                                ? "Rules are checked from top to bottom; the first match wins. Click Reorder to change the order."
+                                : "Rules are checked from top to bottom; the first match wins.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 ForEach(ruleEngine.rules) { rule in
@@ -176,6 +177,15 @@ struct RulesListView: View {
                     view.onMove(perform: moveRules)
                 }
             }
+            .overlay {
+                if ruleEngine.rules.isEmpty {
+                    ContentUnavailableView {
+                        Label("No Rules", systemImage: "arrow.triangle.branch")
+                    } description: {
+                        Text("Click Add Rule to send matching links to a specific browser, profile, or app.")
+                    }
+                }
+            }
 
             Divider()
 
@@ -192,6 +202,7 @@ struct RulesListView: View {
                     )
                 }
                 .buttonStyle(.bordered)
+                .disabled(ruleEngine.rules.count < 2 && !isReorderMode)
 
                 Spacer()
             }
@@ -270,27 +281,37 @@ struct RuleRowView: View {
     var body: some View {
         HStack(spacing: 10) {
             if !isReorderMode {
-                Toggle("", isOn: Binding(get: { rule.isEnabled }, set: { _ in toggleAction() }))
+                Toggle("Enabled", isOn: Binding(get: { rule.isEnabled }, set: { _ in toggleAction() }))
                     .labelsHidden()
+                    .help(rule.isEnabled ? "Turn Off Rule" : "Turn On Rule")
+                    .accessibilityLabel("Rule for \(rule.pattern)")
             }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(rule.pattern)
-                    .font(.system(.body, weight: .medium))
-                Text(rule.matchType.rawValue)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.body.weight(.medium))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                HStack(spacing: 4) {
+                    Text(rule.matchType.rawValue)
+                    if !rule.isEnabled {
+                        Text("· Off")
+                    }
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
                 if !rule.profileIds.isEmpty {
                     let names = rule.profileIds.compactMap { id in
                         profileManager.profiles.first(where: { $0.id == id })?.name
                     }.joined(separator: ", ")
                     if !names.isEmpty {
-                        Text("Profiles: \(names)")
-                            .font(.caption2)
-                            .foregroundColor(.accentColor)
+                        Label("Profiles: \(names)", systemImage: "person.crop.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
+            .opacity(rule.isEnabled ? 1.0 : 0.6)
 
             Spacer()
 
@@ -300,27 +321,36 @@ struct RuleRowView: View {
                     Image(nsImage: icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 16, height: 16)
+                        .frame(width: 18, height: 18)
+                        .accessibilityHidden(true)
                 }
                 Text(targetDescription)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
+            .opacity(rule.isEnabled ? 1.0 : 0.6)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Opens in \(targetDescription)")
 
             if !isReorderMode {
                 Button(action: editAction) {
                     Image(systemName: "pencil")
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderless)
+                .help("Edit Rule")
+                .accessibilityLabel("Edit rule for \(rule.pattern)")
 
                 Button(action: deleteAction) {
                     Image(systemName: "trash")
-                        .foregroundColor(.red)
+                        .foregroundStyle(.red)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderless)
+                .help("Delete Rule")
+                .accessibilityLabel("Delete rule for \(rule.pattern)")
             }
         }
-        .opacity(rule.isEnabled ? 1.0 : 0.5)
+        .padding(.vertical, 2)
     }
 }
 
@@ -369,6 +399,7 @@ struct AboutView: View {
                 .frame(width: 96, height: 96)
                 .cornerRadius(20)
                 .shadow(radius: 4, x: 0, y: 2)
+                .accessibilityHidden(true)
 
             Text(appName)
                 .font(.title2)
@@ -408,29 +439,48 @@ struct BrowsersListView: View {
     @State private var orderedBrowsers: [Browser] = []
 
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             List {
-                Section("Browser Profiles") {
+                Section {
+                    if orderedBrowsers.isEmpty {
+                        Text("No browsers found. Click Add Browser to add one.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(orderedBrowsers) { browser in
+                            BrowserRowView(
+                                browser: browser,
+                                browserDetector: browserDetector
+                            ) {
+                                editingBrowser = browser
+                            }
+                        }
+                        .onMove(perform: moveBrowsers)
+                    }
+                } header: {
+                    Text("Browsers")
+                } footer: {
+                    Text("Drag to change the order in the picker. Hidden browsers don’t appear in the picker.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
                     if browserDetector.profileCapableBrowsers.isEmpty {
                         Text("Install a supported browser to enable profile detection.")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     } else {
-                        ForEach(browserDetector.profileCapableBrowsers) { browser in
+                        // Distinct row IDs: the same browsers also appear in the Browsers section above,
+                        // and shared IDs make List reuse rows across the two sections.
+                        ForEach(browserDetector.profileCapableBrowsers, id: \.profileAccessRowID) { browser in
                             ProfileAccessRowView(browser: browser, browserDetector: browserDetector)
                         }
                     }
-                }
-
-                Section("Browsers") {
-                    ForEach(orderedBrowsers) { browser in
-                        BrowserRowView(
-                            browser: browser,
-                            browserDetector: browserDetector
-                        ) {
-                            editingBrowser = browser
-                        }
-                    }
-                    .onMove(perform: moveBrowsers)
+                } header: {
+                    Text("Browser Profiles")
+                } footer: {
+                    Text("Grant access so rules can open a specific browser profile.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -444,9 +494,9 @@ struct BrowsersListView: View {
 
                 Spacer()
 
-                Text("\(browserDetector.browsers.count) visible, \(browserDetector.allBrowsers.count) total")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Text("\(browserDetector.browsers.count) of \(browserDetector.allBrowsers.count) shown in picker")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
             .padding()
         }
@@ -477,18 +527,24 @@ struct BrowsersListView: View {
     }
 }
 
+private extension Browser {
+    var profileAccessRowID: String { "profile-access-\(id.uuidString)" }
+}
+
 private struct ProfileAccessRowView: View {
     let browser: Browser
     @ObservedObject var browserDetector: BrowserDetector
 
     var body: some View {
         HStack {
+            BrowserAppIcon(browser: browser, size: 20)
             Text(browser.name)
             Spacer()
 
             if browserDetector.hasProfileAccess(for: browser) {
-                Label("Access granted", systemImage: "checkmark.circle.fill")
-                    .foregroundColor(.green)
+                Label("Access Granted", systemImage: "checkmark.circle.fill")
+                    .symbolRenderingMode(.multicolor)
+                    .foregroundStyle(.secondary)
             } else {
                 Button("Grant Access…") {
                     browserDetector.requestProfileAccess(for: browser)
@@ -524,58 +580,45 @@ struct BrowserRowView: View {
     }
 
     var body: some View {
-        HStack {
-            if let icon = browser.iconImage {
-                Image(nsImage: icon)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 32, height: 32)
-                    .opacity(isHidden ? 0.5 : 1.0)
-            } else {
-                Image(systemName: "app.fill")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 32, height: 32)
-                    .foregroundColor(.secondary)
-                    .opacity(isHidden ? 0.5 : 1.0)
-            }
+        HStack(spacing: 10) {
+            BrowserAppIcon(browser: browser, size: 32)
+                .opacity(isHidden ? 0.5 : 1.0)
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
                     Text(browser.name)
-                        .font(.system(.body, weight: .medium))
+                        .font(.body.weight(.medium))
                         .opacity(isHidden ? 0.5 : 1.0)
 
                     if isHidden {
-                        Text("Hidden")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        BadgeText("Hidden")
                     }
 
-                    if !isCustom {
-                        Text("Auto-detected")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    if isCustom {
+                        BadgeText("Custom")
                     }
                 }
                 Text(browser.bundleIdentifier ?? "Bundle ID unavailable")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                     .opacity(isHidden ? 0.5 : 1.0)
 
                 if let shortcutError {
-                    Text(shortcutError)
-                        .font(.caption)
-                        .foregroundColor(.red)
+                    Label(shortcutError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.callout)
+                        .foregroundStyle(.red)
                 }
             }
 
             Spacer()
 
             VStack(spacing: 2) {
-                Text("Picker key")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                Text("Picker Key")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
 
                 Button {
                     isRecordingShortcut = true
@@ -643,7 +686,7 @@ struct BrowserRowView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(isHidden)
-                    .help("Restore numeric default")
+                    .help("Restore Default Key")
                     .accessibilityLabel("Restore default picker key for \(browser.name)")
                 }
             }
@@ -657,28 +700,51 @@ struct BrowserRowView: View {
                 }
             }) {
                 Image(systemName: isHidden ? "eye" : "eye.slash")
+                    .frame(width: 20)
             }
-            .buttonStyle(.plain)
-            .help(isHidden ? "Show in picker" : "Hide from picker")
+            .buttonStyle(.borderless)
+            .help(isHidden ? "Show in Picker" : "Hide from Picker")
+            .accessibilityLabel(isHidden ? "Show \(browser.name) in picker" : "Hide \(browser.name) from picker")
 
             // Edit button only for custom browsers
             if isCustom {
                 Button(action: editAction) {
                     Image(systemName: "pencil")
                 }
-                .buttonStyle(.plain)
-                .help("Edit browser")
+                .buttonStyle(.borderless)
+                .help("Edit Browser")
+                .accessibilityLabel("Edit \(browser.name)")
 
                 Button(action: {
                     browserDetector.deleteCustomBrowser(browser)
                 }) {
                     Image(systemName: "trash")
-                        .foregroundColor(.red)
+                        .foregroundStyle(.red)
                 }
-                .buttonStyle(.plain)
-                .help("Delete browser")
+                .buttonStyle(.borderless)
+                .help("Delete Browser")
+                .accessibilityLabel("Delete \(browser.name)")
             }
         }
+        .padding(.vertical, 2)
+    }
+}
+
+/// Small secondary tag shown next to a name, e.g. "Hidden".
+private struct BadgeText: View {
+    let text: String
+
+    init(_ text: String) {
+        self.text = text
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(Color.secondary.opacity(0.15), in: Capsule())
     }
 }
 
@@ -702,24 +768,33 @@ struct BrowserEditorView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 0) {
             Text(browser == nil ? "Add Browser" : "Edit Browser")
                 .font(.headline)
-                .padding(.top)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .accessibilityAddTraits(.isHeader)
+
+            Divider()
 
             Form {
-                TextField("Browser Name", text: $name)
-
-                HStack {
-                    TextField("Application Path", text: $path)
-                        .disabled(true)
-                    Button("Browse...") {
-                        selectBrowserApp()
+                LabeledContent("Application") {
+                    HStack {
+                        Text(path.isEmpty ? "None selected" : path)
+                            .foregroundStyle(path.isEmpty ? .secondary : .primary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .help(path)
+                        Button("Choose…") {
+                            selectBrowserApp()
+                        }
+                        .help("Choose Browser App")
                     }
                 }
-                .help("Select the browser application file")
+
+                TextField("Name", text: $name, prompt: Text("Browser name"))
             }
-            .padding()
+            .formStyle(.grouped)
 
             Divider()
 
@@ -727,20 +802,20 @@ struct BrowserEditorView: View {
                 Button("Cancel") {
                     dismiss()
                 }
-                .keyboardShortcut(.escape)
+                .keyboardShortcut(.cancelAction)
 
                 Spacer()
 
                 Button("Save") {
                     saveBrowser()
                 }
-                .keyboardShortcut(.return)
+                .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
-                .disabled(name.isEmpty || path.isEmpty)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || path.isEmpty)
             }
             .padding()
         }
-        .frame(width: 500, height: 300)
+        .frame(width: 480, height: 260)
         .accessibilityIdentifier("browser-editor-screen")
     }
 
@@ -811,6 +886,7 @@ struct ProfilesListView: View {
     @ObservedObject var ruleEngine: RuleEngine
     @State private var showingAddProfile = false
     @State private var newProfileName = ""
+    @FocusState private var isNameFieldFocused: Bool
 
     init(profileManager: ProfileManager, ruleEngine: RuleEngine, showingAddProfile: Bool = false) {
         self.profileManager = profileManager
@@ -818,44 +894,64 @@ struct ProfilesListView: View {
         _showingAddProfile = State(initialValue: showingAddProfile)
     }
 
+    private var trimmedProfileName: String {
+        newProfileName.trimmingCharacters(in: .whitespaces)
+    }
+
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             if profileManager.profiles.isEmpty {
-                VStack(spacing: 8) {
-                    Text("No profiles defined.")
-                    Text("Add a profile to group your routing rules.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                ContentUnavailableView {
+                    Label("No Profiles", systemImage: "person.2")
+                } description: {
+                    Text("Profiles group your rules, such as Work and Personal. Click Add Profile to create one.")
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
-                    ForEach(profileManager.profiles) { profile in
-                        HStack {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.accentColor)
-                                .opacity(profileManager.activeProfileId == profile.id ? 1 : 0)
+                    Section {
+                        ForEach(profileManager.profiles) { profile in
+                            let isActive = profileManager.activeProfileId == profile.id
+                            HStack(spacing: 10) {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Color.accentColor)
+                                    .opacity(isActive ? 1 : 0)
+                                    .accessibilityHidden(true)
 
-                            Text(profile.name)
+                                Text(profile.name)
+                                    .font(.body.weight(isActive ? .semibold : .regular))
 
-                            Spacer()
+                                if isActive {
+                                    Text("Active")
+                                        .font(.callout)
+                                        .foregroundStyle(.secondary)
+                                }
 
-                            Button(profileManager.activeProfileId == profile.id ? "Active" : "Activate") {
-                                profileManager.setActiveProfile(
-                                    profileManager.activeProfileId == profile.id ? nil : profile
-                                )
+                                Spacer()
+
+                                Button(isActive ? "Deactivate" : "Activate") {
+                                    profileManager.setActiveProfile(isActive ? nil : profile)
+                                }
+                                .buttonStyle(.bordered)
+                                .accessibilityLabel(isActive ? "Deactivate \(profile.name)" : "Activate \(profile.name)")
+
+                                Button(action: {
+                                    ruleEngine.removeProfileReferences(profile.id)
+                                    profileManager.deleteProfile(profile)
+                                }) {
+                                    Image(systemName: "trash")
+                                        .foregroundStyle(.red)
+                                }
+                                .buttonStyle(.borderless)
+                                .help("Delete Profile")
+                                .accessibilityLabel("Delete \(profile.name)")
                             }
-                            .buttonStyle(.bordered)
-
-                            Button(action: {
-                                ruleEngine.removeProfileReferences(profile.id)
-                                profileManager.deleteProfile(profile)
-                            }) {
-                                Image(systemName: "trash")
-                                    .foregroundColor(.red)
-                            }
-                            .buttonStyle(.plain)
+                            .padding(.vertical, 2)
                         }
+                    } footer: {
+                        Text("Rules assigned to a profile apply only while it’s active. Rules without a profile always apply.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -866,22 +962,24 @@ struct ProfilesListView: View {
                 if showingAddProfile {
                     TextField("Profile name", text: $newProfileName)
                         .textFieldStyle(.roundedBorder)
+                        .focused($isNameFieldFocused)
+                        .onAppear { isNameFieldFocused = true }
 
                     Button("Add") {
-                        guard !newProfileName.isEmpty else { return }
-                        profileManager.addProfile(Profile(name: newProfileName))
+                        guard !trimmedProfileName.isEmpty else { return }
+                        profileManager.addProfile(Profile(name: trimmedProfileName))
                         newProfileName = ""
                         showingAddProfile = false
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(newProfileName.isEmpty)
-                    .keyboardShortcut(.return)
+                    .disabled(trimmedProfileName.isEmpty)
+                    .keyboardShortcut(.defaultAction)
 
                     Button("Cancel") {
                         newProfileName = ""
                         showingAddProfile = false
                     }
-                    .keyboardShortcut(.escape)
+                    .keyboardShortcut(.cancelAction)
                 } else {
                     Button(action: { showingAddProfile = true }) {
                         Label("Add Profile", systemImage: "plus")

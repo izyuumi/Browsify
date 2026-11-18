@@ -29,17 +29,23 @@ struct BrowserPickerView: View {
             // URL display
             if let url = urlHandler.pendingURL {
                 Text(url.absoluteString)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.secondary)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .frame(maxWidth: .infinity)
+                    .help(url.absoluteString)
             }
 
             if browserDetector.browsers.isEmpty {
                 VStack(spacing: 8) {
-                    Text("No browsers found")
+                    Text("No Browsers Found")
                         .font(.headline)
+
+                    Text("Add or unhide a browser in Settings.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
 
                     Button("Open Settings…") {
                         (NSApp.delegate as? AppDelegate)?.showSettings()
@@ -69,7 +75,7 @@ struct BrowserPickerView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.2), radius: 16, x: 0, y: 8)
         .allowsHitTesting(true)
@@ -109,6 +115,30 @@ struct BrowserPickerView: View {
     }
 }
 
+/// A browser's app icon, or a globe when the app's icon can't be loaded.
+struct BrowserAppIcon: View {
+    let browser: Browser
+    let size: CGFloat
+
+    var body: some View {
+        Group {
+            if let icon = browser.iconImage {
+                Image(nsImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                Image(systemName: "globe")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .padding(size / 8)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+}
+
 struct BrowserIcon: View {
     let browser: Browser
     let shortcut: String?
@@ -135,18 +165,7 @@ struct BrowserIcon: View {
 
                 // Browser icon with optional remembered-browser ring
                 ZStack {
-                    if let icon = browser.iconImage {
-                        Image(nsImage: icon)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 56, height: 56)
-                    } else {
-                        Image(systemName: "app.fill")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 56, height: 56)
-                            .foregroundColor(.secondary)
-                    }
+                    BrowserAppIcon(browser: browser, size: 56)
 
                     // Highlight ring for remembered browser
                     if isRemembered {
@@ -158,17 +177,26 @@ struct BrowserIcon: View {
 
                 // Browser name shown on hover (always in hierarchy to avoid height flicker)
                 Text(browser.name)
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundColor(.primary)
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.tail)
+                    .frame(maxWidth: 64)
                     .opacity(isHovered ? 1 : 0)
             }
             .padding(6)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.primary.opacity(isHovered ? 0.08 : 0))
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .animation(.easeInOut(duration: 0.15), value: isHovered)
         }
         .buttonStyle(.plain)
-        .help(browser.name)
+        .help(isRemembered ? "\(browser.name) — last used for this site" : browser.name)
+        .accessibilityLabel("Open in \(browser.name)")
+        .accessibilityValue(isRemembered ? "Last used for this site" : "")
+        .accessibilityHint(shortcut.map { "Shortcut: \(BrowserPickerShortcut.displayKey($0))" } ?? "")
         .onHover { hovering in
             isHovered = hovering
             if hovering {

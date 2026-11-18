@@ -8,11 +8,11 @@ import Foundation
 enum BrowserPickerShortcut {
     static let storageKey = "browserPickerShortcuts"
 
-    static func load(from defaults: UserDefaults = .standard) -> [String: String] {
+    static func load(from defaults: UserDefaults = .browsify) -> [String: String] {
         defaults.dictionary(forKey: storageKey) as? [String: String] ?? [:]
     }
 
-    static func save(_ shortcuts: [String: String], to defaults: UserDefaults = .standard) {
+    static func save(_ shortcuts: [String: String], to defaults: UserDefaults = .browsify) {
         defaults.set(shortcuts, forKey: storageKey)
     }
 

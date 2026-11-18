@@ -67,6 +67,6 @@ class URLCleaner {
 
     func shouldStripTracking() -> Bool {
         // This could be user-configurable in preferences
-        return UserDefaults.standard.bool(forKey: "stripTrackingParameters")
+        return UserDefaults.browsify.bool(forKey: "stripTrackingParameters")
     }
 }

@@ -11,7 +11,7 @@ class RuleEngine: ObservableObject {
     @Published var rules: [RoutingRule] = []
     private let defaults: UserDefaults
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .browsify) {
         self.defaults = defaults
         loadRules()
     }
