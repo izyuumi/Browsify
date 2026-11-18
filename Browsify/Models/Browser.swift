@@ -9,7 +9,7 @@ import os
 
 struct Browser: Identifiable, Codable, Hashable {
     private static let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "com.yumiizumi.Browsify",
+        subsystem: Bundle.main.bundleIdentifier ?? "Browsify",
         category: "BrowserLaunch"
     )
     let id: UUID
@@ -37,7 +37,16 @@ struct Browser: Identifiable, Codable, Hashable {
         if let iconData = icon {
             return NSImage(data: iconData)
         }
-        return NSWorkspace.shared.icon(forFile: path)
+        if FileManager.default.fileExists(atPath: path) {
+            return NSWorkspace.shared.icon(forFile: path)
+        }
+        // The recorded path can be stale or unreadable from the sandbox; ask LaunchServices.
+        // Returns nil rather than a generic document icon so views can show a clear fallback.
+        if let bundleIdentifier,
+           let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) {
+            return NSWorkspace.shared.icon(forFile: appURL.path)
+        }
+        return nil
     }
 
     func openURL(_ url: URL, profile: BrowserProfile? = nil) {

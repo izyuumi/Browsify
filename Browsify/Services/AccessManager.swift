@@ -29,7 +29,7 @@ final class AccessManager {
         ProfileFolder(bundleIdentifier: "org.mozilla.firefox", applicationSupportComponents: ["Firefox"]),
     ]
 
-    init(userDefaults: UserDefaults = .standard) {
+    init(userDefaults: UserDefaults = .browsify) {
         self.userDefaults = userDefaults
     }
 

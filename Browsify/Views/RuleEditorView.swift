@@ -68,42 +68,34 @@ struct RuleEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            HStack {
-                Text(rule == nil ? "Add Rule" : "Edit Rule")
-                    .font(.headline)
-                Spacer()
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding()
+            Text(rule == nil ? "Add Rule" : "Edit Rule")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .accessibilityAddTraits(.isHeader)
 
             Divider()
 
             // Form
             Form {
-                Section("Match Condition") {
-                    Picker("Type", selection: $matchType) {
+                Section("When a Link Matches") {
+                    Picker("Match", selection: $matchType) {
                         ForEach(RuleMatchType.allCases, id: \.self) { type in
                             Text(type.rawValue).tag(type)
                         }
                     }
 
-                    TextField("Pattern", text: $pattern)
-                        .textFieldStyle(.roundedBorder)
+                    TextField("Pattern", text: $pattern, prompt: Text(patternPrompt))
+                        .accessibilityHint(matchTypeHint)
 
                     Text(matchTypeHint)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 if !profileManager.profiles.isEmpty {
-                    Section("Profile") {
-                        Text("Apply only when this profile is active (leave all unchecked for global rule):")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    Section {
                         ForEach(profileManager.profiles) { profile in
                             Toggle(profile.name, isOn: Binding(
                                 get: { selectedProfileIds.contains(profile.id) },
@@ -113,19 +105,26 @@ struct RuleEditorView: View {
                                 }
                             ))
                         }
+                    } header: {
+                        Text("Only in Profiles")
+                    } footer: {
+                        Text("Leave all unchecked to apply this rule in every profile.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
-                Section("Target") {
+                Section("Open With") {
                     Picker("Open with", selection: $targetType) {
                         Text("Browser").tag(TargetType.browser)
                         Text("Desktop App").tag(TargetType.desktopApp)
                     }
                     .pickerStyle(.segmented)
+                    .labelsHidden()
 
                     if targetType == .browser {
                         Picker("Browser", selection: $selectedBrowser) {
-                            Text("Select Browser").tag(nil as Browser?)
+                            Text("Choose a Browser").tag(nil as Browser?)
                             ForEach(browserDetector.browsers) { browser in
                                 Text(browser.name).tag(browser as Browser?)
                             }
@@ -140,11 +139,20 @@ struct RuleEditorView: View {
                             }
                         }
                     } else {
+                        let installedApps = DesktopApp.knownApps.filter { $0.isInstalled }
                         Picker("Desktop App", selection: $selectedDesktopApp) {
-                            Text("Select App").tag(nil as DesktopApp?)
-                            ForEach(DesktopApp.knownApps.filter { $0.isInstalled }) { app in
+                            Text("Choose an App").tag(nil as DesktopApp?)
+                            ForEach(installedApps) { app in
                                 Text(app.name).tag(app as DesktopApp?)
                             }
+                        }
+                        .disabled(installedApps.isEmpty)
+
+                        if installedApps.isEmpty {
+                            Text("None of the supported apps (\(DesktopApp.knownApps.map(\.name).joined(separator: ", "))) are installed.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
@@ -158,6 +166,7 @@ struct RuleEditorView: View {
                 Button("Cancel") {
                     dismiss()
                 }
+                .keyboardShortcut(.cancelAction)
 
                 Spacer()
 
@@ -165,6 +174,7 @@ struct RuleEditorView: View {
                     saveRule()
                 }
                 .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
                 .disabled(!canSave)
             }
             .padding()
@@ -186,6 +196,14 @@ struct RuleEditorView: View {
             return "Match the full URL. Supports wildcards, e.g. https://meet.google.com/*, *zoom.us*"
         case .sourceApp:
             return "Match the source application bundle ID, e.g. com.apple.mail, com.microsoft.Outlook"
+        }
+    }
+
+    private var patternPrompt: String {
+        switch matchType {
+        case .domain: return "github.com"
+        case .urlPattern: return "https://meet.google.com/*"
+        case .sourceApp: return "com.apple.mail"
         }
     }
 

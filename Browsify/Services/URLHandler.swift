@@ -146,14 +146,14 @@ class URLHandler: NSObject, ObservableObject {
     func clearRememberedBrowser(for url: URL) {
         guard let domain = extractDomain(from: url) else { return }
         domainBrowserMap.removeValue(forKey: domain)
-        UserDefaults.standard.set(domainBrowserMap, forKey: domainBrowserMapKey)
+        UserDefaults.browsify.set(domainBrowserMap, forKey: domainBrowserMapKey)
         NSLog("[URLHandler] Cleared remembered browser for domain '\(domain)'")
     }
 
     /// Removes all remembered browser–domain associations.
     func clearAllRememberedBrowsers() {
         domainBrowserMap.removeAll()
-        UserDefaults.standard.removeObject(forKey: domainBrowserMapKey)
+        UserDefaults.browsify.removeObject(forKey: domainBrowserMapKey)
         NSLog("[URLHandler] Cleared all remembered browsers")
     }
 
@@ -194,7 +194,7 @@ class URLHandler: NSObject, ObservableObject {
     }
 
     private func loadDefaultBrowserPreference() -> DefaultBrowserPreference {
-        guard let storedValue = UserDefaults.standard.string(forKey: defaultBrowserPreferenceKey) else {
+        guard let storedValue = UserDefaults.browsify.string(forKey: defaultBrowserPreferenceKey) else {
             return .prompt
         }
 
@@ -212,9 +212,9 @@ class URLHandler: NSObject, ObservableObject {
     private func saveDefaultBrowserPreference(_ preference: DefaultBrowserPreference) {
         switch preference {
         case .prompt:
-            UserDefaults.standard.set("prompt", forKey: defaultBrowserPreferenceKey)
+            UserDefaults.browsify.set("prompt", forKey: defaultBrowserPreferenceKey)
         case .browser(let browserId):
-            UserDefaults.standard.set(browserId.uuidString, forKey: defaultBrowserPreferenceKey)
+            UserDefaults.browsify.set(browserId.uuidString, forKey: defaultBrowserPreferenceKey)
         }
     }
 
@@ -238,11 +238,11 @@ class URLHandler: NSObject, ObservableObject {
             let keysToRemove = Array(domainBrowserMap.keys.prefix(excess))
             keysToRemove.forEach { domainBrowserMap.removeValue(forKey: $0) }
         }
-        UserDefaults.standard.set(domainBrowserMap, forKey: domainBrowserMapKey)
+        UserDefaults.browsify.set(domainBrowserMap, forKey: domainBrowserMapKey)
         NSLog("[URLHandler] Remembered browser '\(browser.name)' for domain '\(domain)'")
     }
 
     private func loadDomainBrowserMap() -> [String: String] {
-        return UserDefaults.standard.dictionary(forKey: domainBrowserMapKey) as? [String: String] ?? [:]
+        return UserDefaults.browsify.dictionary(forKey: domainBrowserMapKey) as? [String: String] ?? [:]
     }
 }

@@ -215,7 +215,7 @@ class BrowserDetector: ObservableObject {
     }
 
     private func loadCustomBrowsers() -> [Browser] {
-        guard let data = UserDefaults.standard.data(forKey: customBrowsersKey),
+        guard let data = UserDefaults.browsify.data(forKey: customBrowsersKey),
               let browsers = try? JSONDecoder().decode([Browser].self, from: data) else {
             return []
         }
@@ -224,12 +224,12 @@ class BrowserDetector: ObservableObject {
 
     private func saveCustomBrowsers(_ browsers: [Browser]) {
         if let data = try? JSONEncoder().encode(browsers) {
-            UserDefaults.standard.set(data, forKey: customBrowsersKey)
+            UserDefaults.browsify.set(data, forKey: customBrowsersKey)
         }
     }
 
     private func loadHiddenBrowserIds() -> Set<UUID> {
-        guard let data = UserDefaults.standard.data(forKey: hiddenBrowsersKey),
+        guard let data = UserDefaults.browsify.data(forKey: hiddenBrowsersKey),
               let ids = try? JSONDecoder().decode(Set<UUID>.self, from: data) else {
             return []
         }
@@ -238,12 +238,12 @@ class BrowserDetector: ObservableObject {
 
     private func saveHiddenBrowserIds(_ ids: Set<UUID>) {
         if let data = try? JSONEncoder().encode(ids) {
-            UserDefaults.standard.set(data, forKey: hiddenBrowsersKey)
+            UserDefaults.browsify.set(data, forKey: hiddenBrowsersKey)
         }
     }
 
     private func loadBrowserOrder() -> [UUID] {
-        guard let data = UserDefaults.standard.data(forKey: browserOrderKey),
+        guard let data = UserDefaults.browsify.data(forKey: browserOrderKey),
               let order = try? JSONDecoder().decode([UUID].self, from: data) else {
             return []
         }
@@ -252,12 +252,12 @@ class BrowserDetector: ObservableObject {
 
     private func saveBrowserOrder(_ order: [UUID]) {
         if let data = try? JSONEncoder().encode(order) {
-            UserDefaults.standard.set(data, forKey: browserOrderKey)
+            UserDefaults.browsify.set(data, forKey: browserOrderKey)
         }
     }
 
     private func loadBrowserUUIDMap() -> [String: UUID] {
-        guard let data = UserDefaults.standard.data(forKey: browserUUIDMapKey),
+        guard let data = UserDefaults.browsify.data(forKey: browserUUIDMapKey),
               let map = try? JSONDecoder().decode([String: UUID].self, from: data) else {
             return [:]
         }
@@ -266,7 +266,7 @@ class BrowserDetector: ObservableObject {
 
     private func saveBrowserUUIDMap(_ map: [String: UUID]) {
         if let data = try? JSONEncoder().encode(map) {
-            UserDefaults.standard.set(data, forKey: browserUUIDMapKey)
+            UserDefaults.browsify.set(data, forKey: browserUUIDMapKey)
         }
     }
 
@@ -286,6 +286,16 @@ class BrowserDetector: ObservableObject {
     ]
 
     func detectBrowsers() {
+        #if DEBUG
+        if DemoData.isEnabled {
+            // Never scan installed apps or read browser profile folders in demo mode.
+            cachedDetectedBrowsers = DemoData.browsers + loadCustomBrowsers()
+            safariFallbackBrowser = nil
+            updateBrowserVisibility()
+            return
+        }
+        #endif
+
         var uuidMap = loadBrowserUUIDMap()
 
         let knownApplications = knownBrowsers.compactMap { name, bundleIdentifier -> BrowserApplicationCandidate? in
@@ -403,7 +413,10 @@ class BrowserDetector: ObservableObject {
     }
 
     func hasProfileAccess(for browser: Browser) -> Bool {
-        browser.bundleIdentifier.map { accessManager.hasProfileFolderAccess(for: $0) } ?? false
+        #if DEBUG
+        if DemoData.isEnabled { return !browser.profiles.isEmpty }
+        #endif
+        return browser.bundleIdentifier.map { accessManager.hasProfileFolderAccess(for: $0) } ?? false
     }
 
     func requestProfileAccess(for browser: Browser) {

@@ -2,8 +2,6 @@
 //  ContentView.swift
 //  Browsify
 //
-//  Created by Yumi Izumi on 2025/10/14.
-//
 
 import SwiftUI
 

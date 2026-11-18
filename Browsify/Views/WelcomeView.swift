@@ -29,24 +29,28 @@ struct WelcomeView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 96, height: 96)
+                    .accessibilityHidden(true)
 
                 Text("Browsify")
                     .font(.title)
                     .fontWeight(.semibold)
+                    .accessibilityAddTraits(.isHeader)
 
                 Text("Route every link to the right browser.")
-                    .foregroundColor(.secondary)
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
             }
 
-            Text("Browsify catches links you click and routes them to a browser, profile, or app based on your rules; unmatched links show a picker.")
+            Text("Browsify catches the links you click and opens each one in the browser, profile, or app your rules choose. Links that match no rule show a quick picker.")
                 .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("1. See how Browsify works")
+                    Text("1. See How Browsify Works")
                         .font(.headline)
+                        .accessibilityAddTraits(.isHeader)
 
                     VStack(alignment: .leading, spacing: 6) {
                         Button("Test Browsify with a Link…") {
@@ -54,39 +58,46 @@ struct WelcomeView: View {
                         }
 
                         Text("Enter any web address to see where Browsify opens it.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("2. Make Browsify your default browser")
+                    Text("2. Make Browsify Your Default Browser")
                         .font(.headline)
+                        .accessibilityAddTraits(.isHeader)
 
                     HStack {
                         if isDefaultBrowser {
                             Label("Browsify is your default browser", systemImage: "checkmark.circle.fill")
-                                .foregroundColor(.green)
+                                .symbolRenderingMode(.multicolor)
                         } else {
                             Button("Set as Default Browser") {
                                 setAsDefaultBrowser()
                             }
 
-                            Text("macOS will ask for confirmation.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            Text("macOS will ask you to confirm.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("3. (Optional) Enable browser profiles")
+                    Text("3. Enable Browser Profiles (Optional)")
                         .font(.headline)
+                        .accessibilityAddTraits(.isHeader)
+
+                    Text("Let Browsify read profile names so rules can open a specific profile.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     if browserDetector.profileCapableBrowsers.isEmpty {
                         Text("Install a supported browser to enable profile detection.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
                     } else {
                         ForEach(browserDetector.profileCapableBrowsers) { browser in
                             ProfileAccessView(browser: browser, browserDetector: browserDetector)
@@ -146,12 +157,14 @@ private struct ProfileAccessView: View {
 
     var body: some View {
         HStack {
+            BrowserAppIcon(browser: browser, size: 20)
             Text(browser.name)
             Spacer()
 
             if browserDetector.hasProfileAccess(for: browser) {
-                Label("Access granted", systemImage: "checkmark.circle.fill")
-                    .foregroundColor(.green)
+                Label("Access Granted", systemImage: "checkmark.circle.fill")
+                    .symbolRenderingMode(.multicolor)
+                    .foregroundStyle(.secondary)
             } else {
                 Button("Grant Access…") {
                     browserDetector.requestProfileAccess(for: browser)
