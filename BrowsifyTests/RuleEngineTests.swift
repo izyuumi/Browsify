@@ -88,6 +88,35 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertTrue(reader.rules.contains(where: { $0.id == rule.id }))
     }
 
+    func testEditedRuleUsesSelectedBrowserProfileAfterRediscovery() throws {
+        let engine = RuleEngine(defaults: defaults)
+        let browserId = UUID()
+        var rule = makeRule(
+            matchType: .domain,
+            pattern: "example.com",
+            target: .browser(browserId: browserId, profileId: nil)
+        )
+        engine.addRule(rule)
+
+        let selectedProfile = BrowserProfile(
+            name: "Work",
+            profilePath: "Profiles/work",
+            browserBundleId: "org.mozilla.firefox"
+        )
+        let rediscoveredProfile = BrowserProfile(
+            name: "Work",
+            profilePath: "Profiles/work",
+            browserBundleId: "org.mozilla.firefox"
+        )
+        rule.target = .browser(browserId: browserId, profileId: selectedProfile.id)
+        engine.updateRule(rule)
+
+        let url = try XCTUnwrap(URL(string: "https://example.com"))
+        let match = engine.findMatchingRule(for: url, sourceApp: nil)
+
+        XCTAssertEqual(match?.target, .browser(browserId: browserId, profileId: rediscoveredProfile.id))
+    }
+
     private func makeRule(
         matchType: RuleMatchType,
         pattern: String,

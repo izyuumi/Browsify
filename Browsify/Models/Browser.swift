@@ -5,6 +5,7 @@
 
 import Foundation
 import AppKit
+import CryptoKit
 import os
 
 struct Browser: Identifiable, Codable, Hashable {
@@ -130,11 +131,20 @@ struct BrowserProfile: Identifiable, Codable, Hashable {
     let profilePath: String
     let browserBundleId: String
 
-    init(id: UUID = UUID(), name: String, profilePath: String, browserBundleId: String) {
-        self.id = id
+    init(id: UUID? = nil, name: String, profilePath: String, browserBundleId: String) {
+        self.id = id ?? Self.detectedID(browserBundleId: browserBundleId, profilePath: profilePath)
         self.name = name
         self.profilePath = profilePath
         self.browserBundleId = browserBundleId
+    }
+
+    private static func detectedID(browserBundleId: String, profilePath: String) -> UUID {
+        let identity = Data("\(browserBundleId):\(profilePath)".utf8)
+        var bytes = Array(SHA256.hash(data: identity).prefix(16))
+        // Mark the hash-derived identifier as a version 8 UUID with the RFC variant.
+        bytes[6] = (bytes[6] & 0x0F) | 0x80
+        bytes[8] = (bytes[8] & 0x3F) | 0x80
+        return NSUUID(uuidBytes: bytes) as UUID
     }
 
     private static let chromiumFamilyBundleIdentifiers: Set<String> = [
